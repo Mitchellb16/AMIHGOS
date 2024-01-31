@@ -85,7 +85,8 @@ def segment_to_stl(img, animal_name):
     helmet_mesh_file = './templates/helmet_top_BST3_v3.STL'
     helmet_mesh = pv.read(helmet_mesh_file).triangulate(inplace = True)
     
-    window = MeshManipulationWindow(helmet_mesh, head_mesh)
+    # run mesh manipulation window
     app = QtWidgets.QApplication(sys.argv)
+    window = MeshManipulationWindow(helmet_mesh, head_mesh)
     window.run()
     sys.exit(app.exec_())
