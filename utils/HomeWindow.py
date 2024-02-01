@@ -102,7 +102,7 @@ class HomeWindow(object):
         self.moving_image = sitk.DICOMOrient(sitk.ReadImage(FILENAME), 'LPS')
     
     def open_github(self):
-        webbrowser.open('https://github.com/Mitchellb16', new = 1)
+        webbrowser.open('https://github.com/Mitchellb16/AMIHGOS', new = 1)
     
     def validate(self, var, index, mode):
         """
@@ -115,3 +115,9 @@ class HomeWindow(object):
         else:
             self.ROI_button.config(state='disabled')
             print('no file')
+            
+# Example usage
+# =============================================================================
+# if __name__ == '__main__':
+# =============================================================================
+    

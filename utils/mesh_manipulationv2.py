@@ -115,8 +115,8 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         self.scaling_label.setText(f"{self.scaling_factor:.2f}")
         self.update_plotter()
 
-    def translate_mesh(self):
-        # Implement your translation logic here
+    def translate_mesh(self, direction, magnitude):
+        # Implement translation logic 
         self.update_plotter()
 
     def send_for_subtraction(self):

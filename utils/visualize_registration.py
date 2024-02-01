@@ -10,8 +10,9 @@ import tkinter as tk
 import SimpleITK as sitk
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-testing = False
+
 
 def visualize_registration(fixed, moving, root):
     """
@@ -29,6 +30,34 @@ def visualize_registration(fixed, moving, root):
     None.
 
     """
+    
+    # Update the displayed image when sliders change
+    def update_image(*args):
+        display_images_with_alpha(image_slider.get(), alpha_slider.get(), fixed, moving)
+        
+    def display_images_with_alpha(image_z, alpha, fixed, moving):
+        fixed_np = sitk.GetArrayViewFromImage(fixed)[:,:,image_z]
+        moving_np = sitk.GetArrayViewFromImage(moving)[:,:, image_z]
+
+# =============================================================================
+#         img = (1.0 - alpha) * fixed_np[:, :, image_z] + alpha * moving_np[:, :, image_z]
+# =============================================================================
+
+        # Clear the previous plot
+        ax.clear()
+
+        # Plot the image
+        ax.imshow(fixed_np, cmap='Reds', alpha = .7, label = "Template")
+        ax.imshow(moving_np, cmap = 'gray', alpha = alpha, label = "Moving")
+        ax.axis('off')
+        
+        # make patches for legend
+        red_patch = mpatches.Patch(color = 'red', label = "Template")
+        gray_patch = mpatches.Patch(color = 'gray', label = "Moving")
+        ax.legend(handles = [red_patch, gray_patch])
+        # Update the canvas with the new figure
+        canvas.draw()   
+        
     # Create a tkinter window
     window = tk.Toplevel(root)
     window.title("Registration Confirmation")
@@ -44,28 +73,8 @@ def visualize_registration(fixed, moving, root):
     image_z = 0
     alpha = 0.5
 
-    def display_images_with_alpha(image_z, alpha, fixed, moving):
-        fixed_np = sitk.GetArrayViewFromImage(fixed)
-        moving_np = sitk.GetArrayViewFromImage(moving)
-
-        img = (1.0 - alpha) * fixed_np[:, :, image_z] + alpha * moving_np[:, :, image_z]
-
-        # Clear the previous plot
-        ax.clear()
-
-        # Plot the image
-        ax.imshow(img, cmap='gray')
-        ax.axis('off')
-
-        # Update the canvas with the new figure
-        canvas.draw()
-
     # Display the initial image
     display_images_with_alpha(image_z, alpha, fixed, moving)
-
-    # Update the displayed image when sliders change
-    def update_image(*args):
-        display_images_with_alpha(image_slider.get(), alpha_slider.get(), fixed, moving)
 
     # Create sliders for image_z and alpha
     image_slider = tk.Scale(window, from_=0, to=fixed.GetDepth() - 1, 
@@ -77,12 +86,13 @@ def visualize_registration(fixed, moving, root):
     alpha_slider.pack()
 
 
-if testing == True:
+if __name__ == '__main__':
     # Example usage
     fixed_dir = '/home/mitchell/Documents/Projects/CT_helmets/Data/template_largeFOV_CT.nii.gz'
-    moving_dir = '/home/mitchell/Documents/Projects/CT_helmets/AMIHGOS/nifti_files/registered/M1_16_C0_registered.nii.gz'
-    fixed_image = sitk.DICOMOrient(sitk.ReadImage(fixed_dir, sitk.sitkFloat32), 'LPS')
-    moving_image = sitk.DICOMOrient(sitk.ReadImage(moving_dir, sitk.sitkFloat32), 'LPS')
-    
-    visualize_registration(fixed_image, moving_image)
+    moving_dir = '/home/mitchell/Documents/Projects/CT_helmets/AMIHGOS_V3/nifti_files/registered/M1_16_C0_registered.nii.gz'
+    fixed_image = sitk.DICOMOrient(sitk.ReadImage(fixed_dir, sitk.sitkFloat32), 'RIA')
+    moving_image = sitk.DICOMOrient(sitk.ReadImage(moving_dir, sitk.sitkFloat32), 'RIA')
+    root = tk.Tk()
+    visualize_registration(fixed_image, moving_image, root)
+    tk.mainloop()
 
