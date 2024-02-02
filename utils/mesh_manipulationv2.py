@@ -10,8 +10,44 @@ import sys
 from datetime import date
 import pyvista as pv
 from pyvistaqt import BackgroundPlotter
-
 from PyQt5 import QtWidgets
+
+class TranslationButton():
+    # Creating a translation button object that uses the main window functions
+    # because all the axes have similar functionality
+    def __init__(self, axis, window, layout):
+        self.axis = axis
+        self.window = window
+        self.magnitude = 0
+        self.layout = layout
+        # add minus button
+        self.minus_button = QtWidgets.QPushButton("-", self.window)
+        
+        # when clicked, modify magnitude and call translation function
+        self.minus_button.clicked.connect(lambda: 
+                                             (self.subtract_magnitude(), window.translate_mesh()))
+
+        self.layout.addWidget(self.minus_button)
+        
+        
+        # add a label to track translation
+        self.translation_label = QtWidgets.QLabel(
+            self.axis +':' + str(self.magnitude), self.window)
+        self.layout.addWidget(self.translation_label)
+        
+        # add plus button
+        self.plus_button = QtWidgets.QPushButton("+", self.window)
+        
+        # when clicked, modify magnitude and call translation function
+        self.plus_button.clicked.connect(lambda: 
+                                             (self.add_magnitude(), window.translate_mesh()))
+
+        self.layout.addWidget(self.plus_button)
+        
+    def subtract_magnitude(self):
+        self.magnitude -= 1
+    def add_magnitude(self):
+        self.magnitude += 1
 
 class MeshManipulationWindow(QtWidgets.QWidget):
     def __init__(self, helmet_mesh, head_mesh, animal_name = 'Example'):
@@ -63,11 +99,17 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         plus_button.clicked.connect(self.expand_mesh_plus)
         expand_layout.addWidget(plus_button)
 
-        # Translation button
-        translate_button = QtWidgets.QPushButton("Translate", self)
-        translate_button.clicked.connect(self.translate_mesh)
-        layout.addWidget(translate_button)
-
+        # Translation buttons
+        translation_frame = QtWidgets.QFrame(self)
+        translation_layout = QtWidgets.QHBoxLayout(translation_frame)
+        layout.addWidget(translation_frame)
+        
+        # make dictionaries for each axis
+        self.LR_translation = TranslationButton('LR', self, translation_layout)
+        self.PA_translation = TranslationButton('PA', self, translation_layout)
+        self.DV_translation = TranslationButton('DV', self, translation_layout)
+        self.translation_list = [self.LR_translation, self.PA_translation, self.DV_translation]
+ 
         # Send for subtraction button (green)
         send_button = QtWidgets.QPushButton("Send for subtraction", self)
         send_button.clicked.connect(self.send_for_subtraction)
@@ -115,8 +157,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         self.scaling_label.setText(f"{self.scaling_factor:.2f}")
         self.update_plotter()
 
-    def translate_mesh(self, direction, magnitude):
-        # Implement translation logic 
+    def translate_mesh(self):
         self.update_plotter()
 
     def send_for_subtraction(self):
@@ -146,7 +187,9 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         self.head_mesh = self.og_head_mesh.scale([self.scaling_factor, 
                               1, 
                               1])
-        
+        self.head_mesh.points = self.og_head_mesh.points + [self.LR_translation.magnitude, 
+                                              self.PA_translation.magnitude, 
+                                              self.DV_translation.magnitude]
         self.head_actor = self.plotter.add_mesh(self.head_mesh)
         self.plotter.update()
     
@@ -216,7 +259,13 @@ class MeshManipulationWindow(QtWidgets.QWidget):
 
 # Example usage
 if __name__ == '__main__':
-    app = QtWidgets.QApplication(sys.argv)
+    # setting up Qt application stuff
+    if not QtWidgets.QApplication.instance():
+        app = QtWidgets.QApplication(sys.argv)
+    else:
+        app = QtWidgets.QApplication.instance()
+    app.setQuitOnLastWindowClosed(True) 
+    
     # Add your helmet_mesh and head_mesh here
     head_file = '../head_stls/JORAH.stl'
     head_mesh = pv.read(head_file)

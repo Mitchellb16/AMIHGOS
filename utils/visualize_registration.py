@@ -70,7 +70,7 @@ def visualize_registration(fixed, moving, root):
     canvas.get_tk_widget().pack()
 
     # Initial values for image_z and alpha
-    image_z = 0
+    image_z = 100
     alpha = 0.5
 
     # Display the initial image
