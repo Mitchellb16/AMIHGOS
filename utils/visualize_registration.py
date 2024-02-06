@@ -38,11 +38,7 @@ def visualize_registration(fixed, moving, root):
     def display_images_with_alpha(image_z, alpha, fixed, moving):
         fixed_np = sitk.GetArrayViewFromImage(fixed)[:,:,image_z]
         moving_np = sitk.GetArrayViewFromImage(moving)[:,:, image_z]
-
-# =============================================================================
-#         img = (1.0 - alpha) * fixed_np[:, :, image_z] + alpha * moving_np[:, :, image_z]
-# =============================================================================
-
+        
         # Clear the previous plot
         ax.clear()
 
@@ -85,7 +81,7 @@ def visualize_registration(fixed, moving, root):
                             orient=tk.HORIZONTAL, command=update_image, label='Alpha')
     alpha_slider.pack()
 
-
+# for testing
 if __name__ == '__main__':
     # Example usage
     fixed_dir = '/home/mitchell/Documents/Projects/CT_helmets/Data/template_largeFOV_CT.nii.gz'

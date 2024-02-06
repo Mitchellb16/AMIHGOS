@@ -15,7 +15,7 @@ from matplotlib.ticker import MaxNLocator
 from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, 
 NavigationToolbar2Tk)
 from .visualize_registration import visualize_registration
-from .segment_to_stl import segment_to_stl
+from .segment_to_stl import start_segment_to_stl
 from .sitk2vtk import *
 from .vtkutils import *
 
@@ -471,5 +471,5 @@ class RegistrationPointDataAquisition(object):
     def launch_segmentation(self):
         self.popup.destroy()
         self.root.destroy()
-        segment_to_stl(moving_resampled, self.animal_name)
+        start_segment_to_stl(moving_resampled, self.animal_name)
         
