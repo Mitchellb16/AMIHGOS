@@ -15,7 +15,7 @@ from matplotlib.ticker import MaxNLocator
 from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, 
 NavigationToolbar2Tk)
 from .visualize_registration import visualize_registration
-from .segment_to_stl import start_segment_to_stl
+from .segment_to_stl import SegmentationScreen
 from .sitk2vtk import *
 from .vtkutils import *
 
@@ -104,14 +104,16 @@ class RegistrationPointDataAquisition(object):
 
     def create_ui(self):
         # Create buttons for clearing and saving manual registration points
-        self.clearlast_button = Button(self.window,
-            text="Clear Last", command = self.clear_last
-        ).grid(column = 1, row = 1)
-
-        self.clearall_button = Button(self.window,
-            text="Clear All", command = self.clear_all
-        ).grid(column = 1, row = 2)
-        
+# =============================================================================
+#         self.clearlast_button = Button(self.window,
+#             text="Clear Last", command = self.clear_last
+#         ).grid(column = 1, row = 1)
+# 
+#         self.clearall_button = Button(self.window,
+#             text="Clear All", command = self.clear_all
+#         ).grid(column = 1, row = 2)
+#         
+# =============================================================================
         self.save_points_button = Button(self.window, 
                                          text = 'Save Points and Register', 
                                          command = self.save_points).grid(column = 1, row = 3)
@@ -431,9 +433,7 @@ class RegistrationPointDataAquisition(object):
         minmax_filt.Execute(self.moving_image)
         min_voxel = minmax_filt.GetMinimum()
         
-        global moving_resampled 
-        
-        moving_resampled = sitk.Resample(
+        self.moving_resampled = sitk.Resample(
             self.moving_image,
             self.fixed_image,
             self.init_transform,
@@ -442,7 +442,7 @@ class RegistrationPointDataAquisition(object):
             self.moving_image.GetPixelID(),
         )
         print('Registration Complete!')
-        visualize_registration(self.fixed_image, moving_resampled, root=self.root)
+        visualize_registration(self.fixed_image, self.moving_resampled, root=self.root)
         # popup window with button for next step, segmentation
         # Show a popup message with a continue button
         self.popup = Toplevel(self.window)
@@ -471,5 +471,7 @@ class RegistrationPointDataAquisition(object):
     def launch_segmentation(self):
         self.popup.destroy()
         self.root.destroy()
-        start_segment_to_stl(moving_resampled, self.animal_name)
+        seg_screen = SegmentationScreen(self.moving_resampled, self.animal_name)
+        seg_screen.run_mesh_manipulation_window()
+        
         

@@ -14,9 +14,9 @@ import threading
 import time
 import os
 from PyQt5 import QtWidgets
-import sitk2vtk
-import vtkutils
-from mesh_manipulationv2 import MeshManipulationWindow
+from utils import sitk2vtk
+from utils import vtkutils
+from utils.mesh_manipulationv2 import MeshManipulationWindow
 
 class SegmentationScreen:
     def __init__(self, img, animal_name):
@@ -133,7 +133,7 @@ class SegmentationScreen:
         else:
             app = QtWidgets.QApplication.instance()
         app.setQuitOnLastWindowClosed(True) 
-        window = MeshManipulationWindow(helmet_mesh, head_mesh)
+        window = MeshManipulationWindow(helmet_mesh, head_mesh, self.animal_name)
         window.run()
         sys.exit(app.exec_())
 

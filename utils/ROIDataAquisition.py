@@ -32,10 +32,11 @@ class ROIDataAquisition(object):
     correct behavior, though initially you may be surprised by it.
     """
 
-    def __init__(self, image, window, root, frames_list, window_level=None, figure_size=(3, 2)):
+    def __init__(self, image, window, root, frames_list, window_level=None, figure_size=(6, 4)):
         self.window = window
         self.root = root
         self.frames_list = frames_list
+        self.root.geometry('1600x400')
         
         # change window location
         # get main window position
@@ -43,8 +44,8 @@ class ROIDataAquisition(object):
         root_y = self.root.winfo_rooty()
     
         # add offset
-        win_x = root_x + 300
-        win_y = root_y + 100
+        win_x = root_x + 600
+        win_y = root_y + 200
 
         # set toplevel in new position
         self.root.geometry(f'+{win_x}+{win_y}')
@@ -63,7 +64,7 @@ class ROIDataAquisition(object):
             facecolor="red", edgecolor="black", alpha=0.2, fill=True
         )
 
-        ui = self.create_ui()
+        self.create_ui()
 
         # Create a figure with axes for front, middle, and back 
         self.back_fig, self.back_ax = plt.subplots(1, 1, figsize=figure_size)
@@ -114,26 +115,34 @@ class ROIDataAquisition(object):
         self.update_display()
 
     def create_ui(self):
-        # Create the active UI components. Height and width are specified in 'em' units. This is
-        # a html size specification, size relative to current font size.
-        self.addroi_button = Button(self.window,
-            text="Add ROI", command = self.add_roi
-        ).grid(column = 2, row = 1)
-        self.clearlast_button = Button(self.window,
-            text="Clear Last", command = self.clear_last
-        ).grid(column = 2, row=2)
-
-        self.clearall_button = Button(self.window,
-            text="Clear All").grid(column = 2, row = 3)
+        # Create the active UI components. 
+        #
         
-        self.crop_button = Button(self.window, 
+        # make a frame to put all of the buttons in
+        self.button_frame = Frame(self.window)
+        
+        self.addroi_button = Button(self.button_frame,
+            text="Add ROI", command = self.add_roi)
+        self.addroi_button.pack(side='left')
+# =============================================================================
+#         self.clearlast_button = Button(self.window,
+#             text="Clear Last", command = self.clear_last
+#         ).grid(column = 2, row=2)
+# 
+#         self.clearall_button = Button(self.window,
+#             text="Clear All").grid(column = 2, row = 3)
+# =============================================================================
+        
+        self.crop_button = Button(self.button_frame, 
                                   text = 'Crop Image',
                                   command = self.crop_moving
-                                  ).grid(column = 2, row = 5)
+                                  )
+        self.crop_button.pack(side='left')
         # Add a Quit button
-        self.quit_button = Button(self.window, text="Quit", command=self.quit_application)
-        self.quit_button.grid(row=0, column=1)  # Adjust row and column as needed
+        self.quit_button = Button(self.button_frame, text="Quit", command=self.quit_application)
+        self.quit_button.pack(side = BOTTOM) # Adjust row and column as needed
         
+        self.button_frame.grid(column=1, columnspan=1, row=4)
         # add frames for each image/slider combo to be packed in
         self.slider_boxes = [Frame(self.window), Frame(self.window)]
         self.sliders = [0,0]
@@ -158,11 +167,7 @@ class ROIDataAquisition(object):
         self.sliders[1].set(370)
         self.sliders[1].pack(side = 'left')
 
-            
-        return Frame(self.window,
-                     [self.addroi_button, self.clearlast_button, self.clearall_button]
-                     )
-
+        
     def on_slice_slider_value_change(self, change):
         self.update_display()
 

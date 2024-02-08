@@ -54,7 +54,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         super().__init__()
 
         self.animal_name = animal_name
-        self.og_head_mesh, self.helmet_mesh = self.mesh_preprocess(head_mesh, helmet_mesh)
+        self.og_head_mesh, self.helmet_mesh = self.mesh_preprocess(head_mesh, helmet_mesh, name = self.animal_name)
         
         # Connect the destroyed signal of the window to the quit slot of the application
         self.destroyed.connect(QtWidgets.qApp.quit)
@@ -71,22 +71,22 @@ class MeshManipulationWindow(QtWidgets.QWidget):
 
     def setup_ui(self):
         # Create a layout
-        layout = QtWidgets.QVBoxLayout(self)
+        self.layout = QtWidgets.QVBoxLayout(self)
 
         # Plot button
         plot_button = QtWidgets.QPushButton("Plot meshes", self)
         plot_button.clicked.connect(self.create_pvplotter)
-        layout.addWidget(plot_button)
+        self.layout.addWidget(plot_button)
 
         # Rotation button
         rotate_button = QtWidgets.QPushButton("Rotate", self)
         rotate_button.clicked.connect(self.rotate_mesh)
-        layout.addWidget(rotate_button)
+        self.layout.addWidget(rotate_button)
 
         # Expansion buttons
         expand_frame = QtWidgets.QFrame(self)
         expand_layout = QtWidgets.QHBoxLayout(expand_frame)
-        layout.addWidget(expand_frame)
+        self.layout.addWidget(expand_frame)
 
         minus_button = QtWidgets.QPushButton("-", self)
         minus_button.clicked.connect(self.expand_mesh_minus)
@@ -102,7 +102,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         # Translation buttons
         translation_frame = QtWidgets.QFrame(self)
         translation_layout = QtWidgets.QHBoxLayout(translation_frame)
-        layout.addWidget(translation_frame)
+        self.layout.addWidget(translation_frame)
         
         # make dictionaries for each axis
         self.LR_translation = TranslationButton('LR', self, translation_layout)
@@ -114,22 +114,22 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         send_button = QtWidgets.QPushButton("Send for subtraction", self)
         send_button.clicked.connect(self.send_for_subtraction)
         send_button.setStyleSheet("background-color: green")
-        layout.addWidget(send_button)
+        self.layout.addWidget(send_button)
 
         # Save button (greyed out initially)
         self.save_button = QtWidgets.QPushButton("Save", self)
         self.save_button.clicked.connect(self.save_mesh)
         self.save_button.setDisabled(True)
         self.save_button.setStyleSheet("background-color: grey")
-        layout.addWidget(self.save_button)
+        self.layout.addWidget(self.save_button)
 
         # Close button
         close_button = QtWidgets.QPushButton("Close", self)
         close_button.clicked.connect(self.close_window)
-        layout.addWidget(close_button)
+        self.layout.addWidget(close_button)
 
         # Set the layout to the main window
-        self.setLayout(layout)
+        self.setLayout(self.layout)
 
     def create_pvplotter(self):
         self.plotter = BackgroundPlotter(off_screen=False, notebook=False)
@@ -161,7 +161,12 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         self.update_plotter()
 
     def send_for_subtraction(self):
+        print(self.helmet_mesh.is_manifold)
+        print(self.head_mesh.is_manifold)
         bool_mesh = self.helmet_mesh.boolean_difference(self.head_mesh)
+        
+        # here we slice out the portion of the helmet with sharp edges, 
+        # smooth it out, then plug it back in
         bounds = [-21, 20, -20, 20, -18, -3]
         clipped = bool_mesh.clip_box(bounds)
         clipping = bool_mesh.clip_box(bounds, invert=False)
@@ -175,8 +180,10 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         self.update_plotter()
 
     def save_mesh(self):
-        self.save_file = f'../helmets/{str(date.today()) + self.animal_name +str(self.scaling_factor)[2:]}.stl'
+        self.save_file = f'helmets/{str(date.today()) + self.animal_name +str(self.scaling_factor)[2:]}.stl'
         self.final_mesh.extract_geometry().save(self.save_file)
+        message = QtWidgets.QLabel(f'{self.save_file} successfully saved!')
+        self.layout.addWidget(message)
 
     def update_plotter(self):
         # remove the previous head actor
