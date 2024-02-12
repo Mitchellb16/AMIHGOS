@@ -5,6 +5,11 @@ Created on Mon Dec 18 15:43:53 2023
 
 @author: mitchell
 """
+import os
+# Example usage
+if __name__ == '__main__':
+    os.chdir('../')
+
 import SimpleITK as sitk
 import pyvista as pv
 import sys
@@ -12,7 +17,6 @@ import tkinter as tk
 from PIL import Image, ImageTk
 import threading
 import time
-import os
 from PyQt5 import QtWidgets
 from utils import sitk2vtk
 from utils import vtkutils
@@ -113,6 +117,16 @@ class SegmentationScreen:
         self.done_label = tk.Label(self.root, text="DONE! Close to continue to helmet subtraction.")
         self.done_label.pack(pady=5)
         
+        # define helmet options for dropdown
+        helmet_options = ['templates/Flat_helmet.STL', 'templates/winged_helmet.stl']
+        
+        # default is flat helmet
+        self.helmet_selection = tk.StringVar()
+        self.helmet_selection.set('templates/Flat_helmet.STL')
+        
+        self.dropdown = tk.OptionMenu(self.root, self.helmet_selection, *helmet_options)
+        self.dropdown.pack()
+        
 # =============================================================================
 #         # read mesh into pyvista object and call mesh function
 #         head_mesh = pv.read(output_dir)
@@ -123,7 +137,7 @@ class SegmentationScreen:
     
     
     def run_mesh_manipulation_window(self):
-        helmet_mesh_file = 'templates/helmet_top_BST3_v3.STL'
+        helmet_mesh_file = self.helmet_selection.get()
         helmet_mesh = pv.read(helmet_mesh_file).triangulate(inplace = True)
         head_mesh = pv.read(self.output_dir)
         # run mesh manipulation window
@@ -140,7 +154,6 @@ class SegmentationScreen:
  
 # Example usage
 if __name__ == '__main__':
-    os.chdir('../')
     img = sitk.ReadImage('nifti_files/registered/JORAH_registered.nii.gz')
     animal_name = 'TEST'
     seg_screen = SegmentationScreen(img, animal_name)
