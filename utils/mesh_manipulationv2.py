@@ -50,9 +50,9 @@ class TranslationButton():
         self.magnitude += 1
 
 class MeshManipulationWindow(QtWidgets.QWidget):
-    def __init__(self, helmet_mesh, head_mesh, animal_name = 'Example'):
+    def __init__(self, helmet_mesh, head_mesh, animal_name = 'Example', helmet_type = 'Flat'):
         super().__init__()
-
+        self.helmet_type = helmet_type
         self.animal_name = animal_name
         self.og_head_mesh, self.helmet_mesh = self.mesh_preprocess(head_mesh, helmet_mesh, name = self.animal_name)
         
@@ -92,7 +92,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         minus_button.clicked.connect(self.expand_mesh_minus)
         expand_layout.addWidget(minus_button)
 
-        self.scaling_label = QtWidgets.QLabel(f"{self.scaling_factor:.2f}", self)
+        self.scaling_label = QtWidgets.QLabel(f"{self.scaling_factor+.15:.2f}", self)
         expand_layout.addWidget(self.scaling_label)
 
         plus_button = QtWidgets.QPushButton("+", self)
@@ -134,7 +134,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
     def create_pvplotter(self):
         self.plotter = BackgroundPlotter(off_screen=False, notebook=False)
         self.plotter.add_mesh(self.helmet_mesh)
-        self.head_actor = self.plotter.add_mesh(self.head_mesh)
+        self.head_actor = self.plotter.add_mesh(self.head_mesh, color = 'magenta')
         self.plotter.show_bounds(grid='front', location='outer', all_edges=True)
         self.plotter.show()
     
@@ -149,12 +149,12 @@ class MeshManipulationWindow(QtWidgets.QWidget):
 
     def expand_mesh_plus(self):
         self.scaling_factor += 0.01
-        self.scaling_label.setText(f"{self.scaling_factor:.2f}")
+        self.scaling_label.setText(f"{self.scaling_factor+.15:.2f}")
         self.update_plotter()
 
     def expand_mesh_minus(self):
         self.scaling_factor -= 0.01
-        self.scaling_label.setText(f"{self.scaling_factor:.2f}")
+        self.scaling_label.setText(f"{self.scaling_factor+.15:.2f}")
         self.update_plotter()
 
     def translate_mesh(self):
@@ -180,7 +180,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         self.update_plotter()
 
     def save_mesh(self):
-        self.save_file = f'helmets/{str(date.today()) + self.animal_name +str(self.scaling_factor)[2:]}.stl'
+        self.save_file = f'helmets/{str(date.today()) + self.animal_name +self.scaling_label[2:]}.stl'
         self.final_mesh.extract_geometry().save(self.save_file)
         message = QtWidgets.QLabel(f'{self.save_file} successfully saved!')
         self.layout.addWidget(message)
@@ -194,10 +194,10 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         self.head_mesh = self.og_head_mesh.scale([self.scaling_factor, 
                               1, 
                               1])
-        self.head_mesh.points = self.og_head_mesh.points + [self.LR_translation.magnitude, 
+        self.head_mesh.points = self.head_mesh.points + [self.LR_translation.magnitude, 
                                               self.PA_translation.magnitude, 
                                               self.DV_translation.magnitude]
-        self.head_actor = self.plotter.add_mesh(self.head_mesh)
+        self.head_actor = self.plotter.add_mesh(self.head_mesh, color = 'magenta')
         self.plotter.update()
     
 
@@ -210,7 +210,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
 
         
     def mesh_preprocess(self, head_mesh, helmet_mesh, name='Example',
-                        separate = False, PET_restrainer = False,
+                        separate = False, 
                         scaling = 1.15):
         """
         Given pyvista mesh of head stl, return a subtraction of the head from 
@@ -253,7 +253,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         text = pv.Text3D(animal_name, depth=.9)
         text.scale([2.5,2.5,2.5], inplace = True)
         text.rotate_z(90, inplace=True)
-        if PET_restrainer:
+        if self.helmet_type == 'PET':
             text_offset = [28,-3,-12.5] #12.5
         else:
             text_offset = [31,5,-14.5]

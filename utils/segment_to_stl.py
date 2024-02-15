@@ -14,9 +14,6 @@ import SimpleITK as sitk
 import pyvista as pv
 import sys
 import tkinter as tk
-from PIL import Image, ImageTk
-import threading
-import time
 from PyQt5 import QtWidgets
 from utils import sitk2vtk
 from utils import vtkutils
@@ -114,7 +111,7 @@ class SegmentationScreen:
     
         vtkutils.writeMesh(mesh4, self.output_dir)
         
-        self.done_label = tk.Label(self.root, text="DONE! Close to continue to helmet subtraction.")
+        self.done_label = tk.Label(self.root, text="DONE! Select helmet then close to continue to helmet subtraction.")
         self.done_label.pack(pady=5)
         
         # define helmet options for dropdown
@@ -126,20 +123,13 @@ class SegmentationScreen:
         
         self.dropdown = tk.OptionMenu(self.root, self.helmet_selection, *helmet_options)
         self.dropdown.pack()
-        
-# =============================================================================
-#         # read mesh into pyvista object and call mesh function
-#         head_mesh = pv.read(output_dir)
-#         
-#         helmet_mesh_file = './templates/helmet_top_BST3_v3.STL'
-#         helmet_mesh = pv.read(helmet_mesh_file).triangulate(inplace = True)
-# =============================================================================
-    
+          
     
     def run_mesh_manipulation_window(self):
         helmet_mesh_file = self.helmet_selection.get()
         helmet_mesh = pv.read(helmet_mesh_file).triangulate(inplace = True)
         head_mesh = pv.read(self.output_dir)
+        
         # run mesh manipulation window
         # setting up Qt application stuff
         if not QtWidgets.QApplication.instance():
