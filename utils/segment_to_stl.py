@@ -111,7 +111,7 @@ class SegmentationScreen:
     
         vtkutils.writeMesh(mesh4, self.output_dir)
         
-        self.done_label = tk.Label(self.root, text="DONE! Select helmet then close to continue to helmet subtraction.")
+        self.done_label = tk.Label(self.root, text="DONE! Select helmet then click below to continue to helmet subtraction.")
         self.done_label.pack(pady=5)
         
         # define helmet options for dropdown
@@ -123,6 +123,11 @@ class SegmentationScreen:
         
         self.dropdown = tk.OptionMenu(self.root, self.helmet_selection, *helmet_options)
         self.dropdown.pack()
+        
+        # add continue button
+        self.continue_button = tk.Button(self.root, 
+                                         text = 'Continue', 
+                                         command = self.run_mesh_manipulation_window)
           
     
     def run_mesh_manipulation_window(self):

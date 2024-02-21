@@ -135,7 +135,7 @@ class HomeWindow(object):
                                                   filetypes=[
                             ("model", ".stl"),
                         ])
-            self.stl_filevar.set(self.stl_file)
+            self.stl_filevar.set(str(self.stl_file))
 
     # var, index, and mode parameters need to be fed because of the stringvar trace        
     def run_mesh_manipulation_window(self, var, index, mode):
