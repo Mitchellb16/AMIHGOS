@@ -128,9 +128,11 @@ class SegmentationScreen:
         self.continue_button = tk.Button(self.root, 
                                          text = 'Continue', 
                                          command = self.run_mesh_manipulation_window)
+        self.continue_button.pack()
           
     
     def run_mesh_manipulation_window(self):
+        self.root.destroy()
         helmet_mesh_file = self.helmet_selection.get()
         helmet_mesh = pv.read(helmet_mesh_file).triangulate(inplace = True)
         head_mesh = pv.read(self.output_dir)
@@ -152,4 +154,6 @@ if __name__ == '__main__':
     img = sitk.ReadImage('nifti_files/registered/JORAH_registered.nii.gz')
     animal_name = 'TEST'
     seg_screen = SegmentationScreen(img, animal_name)
-    seg_screen.run_mesh_manipulation_window()
+# =============================================================================
+#     seg_screen.run_mesh_manipulation_window()
+# =============================================================================
