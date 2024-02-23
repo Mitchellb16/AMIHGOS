@@ -79,9 +79,11 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         self.layout.addWidget(plot_button)
 
         # Rotation button
-        rotate_button = QtWidgets.QPushButton("Rotate", self)
-        rotate_button.clicked.connect(self.rotate_mesh)
-        self.layout.addWidget(rotate_button)
+# =============================================================================
+#         rotate_button = QtWidgets.QPushButton("Rotate", self)
+#         rotate_button.clicked.connect(self.rotate_mesh)
+#         self.layout.addWidget(rotate_button)
+# =============================================================================
 
         # Expansion buttons
         expand_frame = QtWidgets.QFrame(self)
@@ -92,7 +94,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         minus_button.clicked.connect(self.expand_mesh_minus)
         expand_layout.addWidget(minus_button)
 
-        self.scaling_label = QtWidgets.QLabel(f"{self.scaling_factor+.15:.2f}", self)
+        self.scaling_label = QtWidgets.QLabel(f"Expansion: {self.scaling_factor+.15:.2f}", self)
         expand_layout.addWidget(self.scaling_label)
 
         plus_button = QtWidgets.QPushButton("+", self)
@@ -278,7 +280,7 @@ if __name__ == '__main__':
     head_file = '../head_stls/JORAH.stl'
     head_mesh = pv.read(head_file)
     
-    helmet_mesh_file = '../templates/helmet_top_BST3_v3.STL'
+    helmet_mesh_file = '../templates/Flat_helmet.STL'
     helmet_mesh = pv.read(helmet_mesh_file).triangulate(inplace = True)
     
     window = MeshManipulationWindow(helmet_mesh, head_mesh)
