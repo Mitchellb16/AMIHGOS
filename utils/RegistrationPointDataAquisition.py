@@ -40,7 +40,7 @@ class RegistrationPointDataAquisition(object):
         self.window.pack()
         self.root = root
         # location of the template file 
-        fixed_dir = 'nifti_files/template_largeFOV_CT.nii.gz'
+        fixed_dir = 'fixed_image/template_largeFOV_CT.nii.gz'
         self.fixed_image = sitk.ReadImage(fixed_dir)
         self.fixed_image = sitk.DICOMOrient(self.fixed_image, 'RIA')
         

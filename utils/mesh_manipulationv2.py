@@ -181,7 +181,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         self.update_plotter()
 
     def save_mesh(self):
-        self.save_file = 'helmets/'+str(date.today())+self.animal_name+str(self.scaling_factor)[2:]+'.stl'
+        self.save_file = 'helmets/'+str(date.today())+self.animal_name+str(self.scaling_factor+.15)[2:]+'.stl'
         self.final_mesh.extract_geometry().save(self.save_file)
         message = QtWidgets.QLabel(f'{self.save_file} successfully saved!')
         self.layout.addWidget(message)
