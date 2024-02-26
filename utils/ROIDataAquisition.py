@@ -24,14 +24,9 @@ class ROIDataAquisition(object):
     """
     ***Adapted from SIMPLEITK jupyter notebook tutorials
     This class provides a GUI for selecting box shaped Regions Of Interest (ROIs). Each ROI is represented as a
-    tuple: ((min_x,max_x),(min_y,max_y), and possibly (min_z,max_z)) if dealing with a 3D image.
-    When using the zoom/pan tool from the toolbar ROI selection is disabled. Once you click again on the zoom/pan
-    button zooming/panning will be disabled and ROI selection is enabled.
-    Note that when you are marking the ROI on a slice that is outside the Z-range selected by the
-    range slider, once you are done selecting the ROI, you will see no change on the current slice. This is the
-    correct behavior, though initially you may be surprised by it.
+    tuple: ((min_x,max_x),(min_y,max_y), and (min_z,max_z)). 
     """
-
+    
     def __init__(self, image, window, root, frames_list, window_level=None, figure_size=(6, 4)):
         self.window = window
         self.root = root

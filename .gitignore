@@ -3,7 +3,7 @@ archive/
 ipynb_checkpoints/
 head_stls/
 Example_file.nii
-templates/
+templates/archive
 dist/
 build/
 hooks/
