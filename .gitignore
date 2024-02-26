@@ -1,7 +1,6 @@
 nifti_files/
 archive/
 ipynb_checkpoints/
-head_stls/
 Example_file.nii
 templates/archive
 dist/
@@ -10,4 +9,4 @@ hooks/
 pycache/
 Example_file.nii
 AMIGHO_v1.py
-helmets/
+
