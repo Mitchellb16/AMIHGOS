@@ -31,19 +31,26 @@ class ROIDataAquisition(object):
         self.window = window
         self.root = root
         self.frames_list = frames_list
-        self.root.geometry('1600x400')
-        
-        # change window location
-        # get main window position
-        root_x = self.root.winfo_rootx()
-        root_y = self.root.winfo_rooty()
-    
-        # add offset
-        win_x = root_x + 600
-        win_y = root_y + 200
-
-        # set toplevel in new position
-        self.root.geometry(f'+{win_x}+{win_y}')
+        self.root.geometry("")
+# =============================================================================
+#         self.root.geometry('1600x400')
+# =============================================================================
+# =============================================================================
+#         
+#         # change window location
+#         # get main window position
+#         root_x = self.root.winfo_rootx()
+#         root_y = self.root.winfo_rooty()
+#     
+#         # add offset
+#         win_x = root_x + 600
+#         win_y = root_y + 200
+# 
+# =============================================================================
+# =============================================================================
+#         # set toplevel in new position
+#         self.root.geometry(f'+{win_x}+{win_y}')
+# =============================================================================
     
         self.window.pack()
         self.image = image
@@ -76,10 +83,10 @@ class ROIDataAquisition(object):
             if i < 2:
                 canvas = FigureCanvasTkAgg(fig, self.slider_boxes[i])
                 canvas.get_tk_widget().pack()
-                self.slider_boxes[i].grid(column = i, row = 3)
+                self.slider_boxes[i].grid(column = i, row = 1)
             else: 
                 canvas = FigureCanvasTkAgg(fig, self.window)
-                canvas.get_tk_widget().grid(column=3, row = 3)
+                canvas.get_tk_widget().grid(column=3, row = 1, padx=20)
                 
         # Connect the mouse button press to the canvas (__call__ method is the invoked callback).
 
@@ -383,7 +390,9 @@ class ROIDataAquisition(object):
     def launch_registration_aquisition(self):
         self.popup.destroy()  # Close the popup window
         self.window.pack_forget()
-        self.root.geometry('1000x500')
+# =============================================================================
+#         self.root.geometry('1000x500')
+# =============================================================================
         # pixel values that will be shown in the registration window 
         moving_window_level = [250,700]
         fixed_window_level = [39,60]

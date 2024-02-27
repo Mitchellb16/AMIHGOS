@@ -27,9 +27,13 @@ class HomeWindow(object):
     def __init__(self):
         # make main window that is 800x600 px     
         self.root = Tk()
-        self.root.resizable(True, True)
+# =============================================================================
+#         self.root.resizable(True, True)
+# =============================================================================
     
-        self.root.geometry('550x700')
+# =============================================================================
+#         self.root.geometry('550x700')
+# =============================================================================
         self.root.title('AMIHGOS')
     
         
@@ -104,7 +108,6 @@ class HomeWindow(object):
         # ROI button launches ROI class, unpacks the home frame, and resizes window
         self.ROI_button = Button(master = self.intro_frame, state=DISABLED, 
                             command = lambda:[self.intro_frame.pack_forget(), 
-                                              self.root.geometry('1000x300'),
                                               ROIDataAquisition(self.moving_image, 
                                                                 self.ROI_frame, 
                                                                 self.root, 
