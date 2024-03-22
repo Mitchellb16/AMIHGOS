@@ -164,8 +164,6 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         self.update_plotter()
 
     def send_for_subtraction(self):
-        print(self.helmet_mesh.is_manifold)
-        print(self.head_mesh.is_manifold)
         bool_mesh = self.helmet_mesh.boolean_difference(self.head_mesh)
         
         # here we slice out the portion of the helmet with sharp edges, 
@@ -180,7 +178,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         smooth.fill_holes(hole_size=20, inplace=True)
         self.final_mesh = clipped + smooth
         self.save_button.setDisabled(False)
-        self.update_plotter()
+        self.update_plotter(final_plot = True)
 
     def save_mesh(self):
         self.save_file = 'helmets/'+str(date.today())+self.animal_name+str(self.scaling_factor+.15)[2:]+'.stl'
@@ -188,20 +186,25 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         message = QtWidgets.QLabel(f'{self.save_file} successfully saved!')
         self.layout.addWidget(message)
 
-    def update_plotter(self):
+    def update_plotter(self, final_plot = False):
         # remove the previous head actor
         _ = self.plotter.remove_actor(self.head_actor, render = False)
         
-        # gather and apply transformations
-        # scaling only in the LR direction
-        self.head_mesh = self.og_head_mesh.scale([self.scaling_factor, 
-                              1, 
-                              1])
-        self.head_mesh.points = self.head_mesh.points + [self.LR_translation.magnitude, 
-                                              self.PA_translation.magnitude, 
-                                              self.DV_translation.magnitude]
-        self.head_actor = self.plotter.add_mesh(self.head_mesh, color = 'magenta')
-        self.plotter.update()
+        if final_plot:
+            self.plotter.clear()
+            self.plotter.add_mesh(self.final_mesh)
+        
+        else:
+            # gather and apply transformations
+            # scaling only in the LR direction
+            self.head_mesh = self.og_head_mesh.scale([self.scaling_factor, 
+                                  1, 
+                                  1])
+            self.head_mesh.points = self.head_mesh.points + [self.LR_translation.magnitude, 
+                                                  self.PA_translation.magnitude, 
+                                                  self.DV_translation.magnitude]
+            self.head_actor = self.plotter.add_mesh(self.head_mesh, color = 'magenta')
+            self.plotter.update()
     
 
     def close_window(self):

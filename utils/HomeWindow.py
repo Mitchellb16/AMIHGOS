@@ -123,7 +123,7 @@ class HomeWindow(object):
     # file explorer window
     def browseFiles(self, filetype = '.nii'):
         if filetype == '.nii':
-            FILENAME = filedialog.askopenfilename(initialdir = './nifti_files/',
+            FILENAME = filedialog.askopenfilename(initialdir = './nifti_files/Example',
                                                   filetypes=[
                             ("image", ".dcm"),
                             ("image", ".nii"),
