@@ -260,7 +260,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         text.scale([2.5,2.5,2.5], inplace = True)
         text.rotate_z(90, inplace=True)
         if self.helmet_type == 'PET':
-            text_offset = [28,-3,-12.5] #12.5
+            text_offset = [27,5,-11.8] #12.5
         else:
             text_offset = [31,5,-14.5]
         text.points += text_offset
@@ -283,9 +283,9 @@ if __name__ == '__main__':
     head_file = '../head_stls/JORAH.stl'
     head_mesh = pv.read(head_file)
     
-    helmet_mesh_file = '../templates/Flat_helmet.STL'
+    helmet_mesh_file = '../templates/winged_helmet.stl'
     helmet_mesh = pv.read(helmet_mesh_file).triangulate(inplace = True)
     
-    window = MeshManipulationWindow(helmet_mesh, head_mesh)
+    window = MeshManipulationWindow(helmet_mesh, head_mesh, helmet_type = 'PET')
     window.run()
     sys.exit(app.exec_())
