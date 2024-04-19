@@ -11,6 +11,7 @@ from datetime import date
 import pyvista as pv
 from pyvistaqt import BackgroundPlotter
 from PyQt5 import QtWidgets
+import os
 
 class TranslationButton():
     # Creating a translation button object that uses the main window functions
@@ -94,7 +95,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         minus_button.clicked.connect(self.expand_mesh_minus)
         expand_layout.addWidget(minus_button)
 
-        self.scaling_label = QtWidgets.QLabel(f"Expansion: {self.scaling_factor+.15:.2f}", self)
+        self.scaling_label = QtWidgets.QLabel(f"Expansion: {self.scaling_factor:.2f}", self)
         expand_layout.addWidget(self.scaling_label)
 
         plus_button = QtWidgets.QPushButton("+", self)
@@ -168,7 +169,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         
         # here we slice out the portion of the helmet with sharp edges, 
         # smooth it out, then plug it back in
-        bounds = [-21, 20, -20, 20, -18, -3]
+        bounds = [-21, 20, -20, 20, -20, -3]
         clipped = bool_mesh.clip_box(bounds)
         clipping = bool_mesh.clip_box(bounds, invert=False)
         surface = clipping.extract_geometry()
@@ -217,7 +218,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         
     def mesh_preprocess(self, head_mesh, helmet_mesh, name='Example',
                         separate = False, 
-                        scaling = 1.15):
+                        scaling = 1.02):
         """
         Given pyvista mesh of head stl, return a subtraction of the head from 
         the helmet template
@@ -233,8 +234,8 @@ class MeshManipulationWindow(QtWidgets.QWidget):
     
         # scale up and rotate head mesh
         # LR, PA, DV
-        head_mesh.scale([1.20,scaling,scaling], inplace=True)
-        head_mesh.rotate_x(290, inplace=True)
+        head_mesh.scale([scaling,scaling,scaling], inplace=True)
+        head_mesh.rotate_x(280, inplace=True)
         head_mesh = head_mesh.decimate(.5)
     
         
@@ -272,6 +273,8 @@ class MeshManipulationWindow(QtWidgets.QWidget):
 
 # Example usage
 if __name__ == '__main__':
+    
+    os.chdir('../')
     # setting up Qt application stuff
     if not QtWidgets.QApplication.instance():
         app = QtWidgets.QApplication(sys.argv)
@@ -280,12 +283,12 @@ if __name__ == '__main__':
     app.setQuitOnLastWindowClosed(True) 
     
     # Add your helmet_mesh and head_mesh here
-    head_file = '../head_stls/JORAH.stl'
+    head_file = 'head_stls/TEST.stl'
     head_mesh = pv.read(head_file)
     
-    helmet_mesh_file = '../templates/winged_helmet.stl'
+    helmet_mesh_file = 'templates/Flat_helmet.STL'
     helmet_mesh = pv.read(helmet_mesh_file).triangulate(inplace = True)
     
-    window = MeshManipulationWindow(helmet_mesh, head_mesh, helmet_type = 'PET')
+    window = MeshManipulationWindow(helmet_mesh, head_mesh, helmet_type = 'Flat')
     window.run()
     sys.exit(app.exec_())

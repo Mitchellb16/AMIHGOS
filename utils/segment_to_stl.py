@@ -67,6 +67,11 @@ class SegmentationScreen:
             img = sitk.Cast(img, sitk.sitkFloat32)
             img = sitk.CurvatureAnisotropicDiffusion(img, .012)
             img = sitk.Cast(img, pixelType)
+        
+# =============================================================================
+#         # testing
+#         sitk.WriteImage(img, 'nifti_files/anisotropic_smooth.nii')
+# =============================================================================
     
         # Apply the double threshold filter to the volume
         #
@@ -78,11 +83,19 @@ class SegmentationScreen:
             isovalue = 64.0
         
         # Apply a N*N*N median filter.  
-        #
         if medianFilter:
             print("Median filter")
-            img = sitk.Median(img, [15, 15, 15])
-        #
+            median_filter_val = 15
+            # we filter twice to fill in the ear holes
+            median_smooth = sitk.Median(img, [median_filter_val, median_filter_val, median_filter_val])
+            median_detail = sitk.Median(img,[2,2,2])
+            img = sitk.Add(median_smooth, median_detail)
+            
+        # testing
+# =============================================================================
+#         sitk.WriteImage(img, f'nifti_files/median_added.nii')
+# =============================================================================
+
         # Get the minimum image intensity for padding the image
         #
         stats = sitk.StatisticsImageFilter()
@@ -96,20 +109,32 @@ class SegmentationScreen:
     
         vtkimg = sitk2vtk.sitk2vtk(img)
         mesh = vtkutils.extractSurface(vtkimg, isovalue)
+# =============================================================================
+#         vtkutils.writeMesh(mesh, 'head_stls/original.stl')
+# =============================================================================
         vtkimg = None
         mesh2 = vtkutils.cleanMesh(mesh, connectivityFilter)
         mesh = None
-    
+# =============================================================================
+#         vtkutils.writeMesh(mesh2, 'head_stls/cleaned.stl')
+# =============================================================================
         mesh_cleaned_parts =  vtkutils.removeSmallObjects(mesh2, .99)
         mesh2 = None
-    
-        mesh3 = vtkutils.smoothMesh(mesh_cleaned_parts, nIterations=100)
+# =============================================================================
+#         vtkutils.writeMesh(mesh_cleaned_parts, 'head_stls/small_obj.stl')
+# =============================================================================
+        mesh3 = vtkutils.smoothMesh(mesh_cleaned_parts, nIterations=500)
         mesh_cleaned_parts = None
+# =============================================================================
+#         vtkutils.writeMesh(mesh3, 'head_stls/smoothed.stl')
+# =============================================================================
     
-        mesh4 = vtkutils.reduceMesh(mesh3, .97)
-        mesh3 = None
-    
-        vtkutils.writeMesh(mesh4, self.output_dir)
+# =============================================================================
+#         mesh4 = vtkutils.reduceMesh(mesh3, .97)
+#         mesh3 = None
+# =============================================================================
+        
+        vtkutils.writeMesh(mesh3, self.output_dir)
         
         self.done_label = tk.Label(self.root, text="DONE! Select helmet then click below to continue to helmet subtraction.")
         self.done_label.pack(pady=5)

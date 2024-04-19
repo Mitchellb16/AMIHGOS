@@ -441,8 +441,10 @@ class RegistrationPointDataAquisition(object):
             min_voxel,
             self.moving_image.GetPixelID(),
         )
+        
         print('Registration Complete!')
         visualize_registration(self.fixed_image, self.moving_resampled, root=self.root)
+        
         # popup window with button for next step, segmentation
         # Show a popup message with a continue button
         self.popup = Toplevel(self.window)
@@ -469,6 +471,10 @@ class RegistrationPointDataAquisition(object):
         self.animal_name = name_entry.widget.get()
         
     def launch_segmentation(self):
+        # output registration
+        sitk.WriteImage(self.moving_resampled, fileName=self.animal_name)
+        
+        # destroy windows for mesh manipulation
         self.popup.destroy()
         self.root.destroy()
         seg_screen = SegmentationScreen(self.moving_resampled, self.animal_name)
