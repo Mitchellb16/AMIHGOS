@@ -471,8 +471,10 @@ class RegistrationPointDataAquisition(object):
         self.animal_name = name_entry.widget.get()
         
     def launch_segmentation(self):
-        # output registration
-        sitk.WriteImage(self.moving_resampled, fileName=self.animal_name)
+        # output registration for debugging
+# =============================================================================
+#         sitk.WriteImage(self.moving_resampled, fileName=self.animal_name)
+# =============================================================================
         
         # destroy windows for mesh manipulation
         self.popup.destroy()
