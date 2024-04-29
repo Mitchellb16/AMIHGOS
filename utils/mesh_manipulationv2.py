@@ -153,7 +153,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
 
     def expand_mesh_plus(self):
         self.scaling_factor += 0.01
-        self.scaling_label.setText(f"{self.scaling_factor+.15:.2f}")
+        self.scaling_label.setText(f"{self.scaling_factor:.2f}")
         self.update_plotter()
 
     def expand_mesh_minus(self):
@@ -218,7 +218,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         
     def mesh_preprocess(self, head_mesh, helmet_mesh, name='Example',
                         separate = False, 
-                        scaling = 1.02):
+                        scaling = 1.00):
         """
         Given pyvista mesh of head stl, return a subtraction of the head from 
         the helmet template
