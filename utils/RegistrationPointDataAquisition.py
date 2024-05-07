@@ -314,6 +314,7 @@ class RegistrationPointDataAquisition(object):
         print(
             f"Optimizer's stopping condition, {registration_method.GetOptimizerStopConditionDescription()}"
         )
+        print(f"Final transformation: {final_transform.GetParameters()}")
         return (final_transform, registration_method.GetMetricValue())
     
     def get_points(self):
@@ -415,11 +416,20 @@ class RegistrationPointDataAquisition(object):
         fixed_image_points_flat = [c for p in fixed_image_points for c in p]
         moving_image_points_flat = [c for p in moving_image_points for c in p]
 
-        self.init_transform = sitk.AffineTransform(
-           sitk.LandmarkBasedTransformInitializer(
-               sitk.AffineTransform(3), fixed_image_points_flat, moving_image_points_flat
-           )
-        )
+# =============================================================================
+#         self.init_transform = sitk.AffineTransform(
+#            sitk.LandmarkBasedTransformInitializer(
+#                sitk.AffineTransform(3), fixed_image_points_flat, moving_image_points_flat
+#            )
+#         )
+# =============================================================================
+
+        # Initialize a Rigid3DTransform using landmark-based initialization
+        self.init_transform = sitk.LandmarkBasedTransformInitializer(sitk.VersorRigid3DTransform(), 
+                                                                fixed_image_points_flat, 
+                                                                moving_image_points_flat)
+        
+
         print("manual initial transformation is: " + str(self.init_transform.GetParameters()))
 
 
