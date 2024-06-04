@@ -40,8 +40,8 @@ class RegistrationPointDataAquisition(object):
         self.window.pack()
         self.root = root
         # location of the template file 
-        fixed_dir = 'fixed_image/template_largeFOV_CT.nii.gz'
-        self.fixed_image = sitk.ReadImage(fixed_dir)
+        fixed_dir = 'fixed_image/padded_template_image.nii.gz'
+        self.fixed_image = sitk.ReadImage(fixed_dir, outputPixelType=sitk.sitkFloat32)
         self.fixed_image = sitk.DICOMOrient(self.fixed_image, 'RIA')
         
         (
@@ -435,7 +435,7 @@ class RegistrationPointDataAquisition(object):
 
 
 
-        final_transform, _ = self.multires_registration(self.fixed_image, 
+        self.final_transform, _ = self.multires_registration(self.fixed_image, 
                                                         self.moving_image, 
                                                         self.init_transform)
         
@@ -443,15 +443,27 @@ class RegistrationPointDataAquisition(object):
         minmax_filt.Execute(self.moving_image)
         min_voxel = minmax_filt.GetMinimum()
         
+        # execute the transformation
         self.moving_resampled = sitk.Resample(
             self.moving_image,
             self.fixed_image,
-            self.init_transform,
+            self.final_transform,
             sitk.sitkLinear,
             min_voxel,
             self.moving_image.GetPixelID(),
         )
-        
+# =============================================================================
+#         # execute the transformation (init only for testing!!!)
+#         self.moving_resampled = sitk.Resample(
+#             self.moving_image,
+#             self.fixed_image,
+#             self.init_transform,
+#             sitk.sitkLinear,
+#             min_voxel,
+#             self.moving_image.GetPixelID(),
+#         )
+# =============================================================================
+                
         print('Registration Complete!')
         visualize_registration(self.fixed_image, self.moving_resampled, root=self.root)
         
@@ -483,7 +495,7 @@ class RegistrationPointDataAquisition(object):
     def launch_segmentation(self):
         # output registration for debugging
 # =============================================================================
-#         sitk.WriteImage(self.moving_resampled, fileName=self.animal_name)
+#         sitk.WriteImage(self.moving_resampled, fileName=f'nifti_files/registered/registered_{self.animal_name}.nii.gz')
 # =============================================================================
         
         # destroy windows for mesh manipulation
