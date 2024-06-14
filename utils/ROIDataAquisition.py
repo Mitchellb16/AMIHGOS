@@ -105,7 +105,7 @@ class ROIDataAquisition(object):
         # Display the data and the controls, first time we display the images is outside the "update_display" method
         # as that method relies on the existance of a previous image which is removed from the figure.
         # .43 gives a slice of the head that is actually near the widest part
-        self.middle_slice = round((self.sliders[0].get() + self.sliders[1].get()) * .43)
+        self.middle_slice = round((self.sliders[0].get() + self.sliders[1].get()) * .46)
         for i, ax in enumerate([self.back_ax, self.front_ax, self.middle_ax]):
             ax.imshow(
                 self.npa[self.sliders[0].get(), :, :] if i < 2 else self.npa[self.middle_slice, :, :],
@@ -156,7 +156,7 @@ class ROIDataAquisition(object):
                 to=self.npa.shape[0] - 1, 
                 command = self.on_slice_slider_value_change
             )
-        self.sliders[0].set(150)
+        self.sliders[0].set(110)
         self.sliders[0].pack(side = 'left')
         
         # make slider for most anterior
@@ -191,7 +191,7 @@ class ROIDataAquisition(object):
         # imshow adds an image to the axes, so we also remove the previous one.
         # need to do this to front, middle, and back 
         # 43 gives a slice of the head that is actually near the widest part
-        self.middle_slice = round((self.sliders[0].get() + self.sliders[1].get()) * .43)
+        self.middle_slice = round((self.sliders[0].get() + self.sliders[1].get()) * .46)
         for i, ax in enumerate([self.back_ax, self.front_ax, self.middle_ax]):
             ax.imshow(
                 self.npa[self.sliders[i].get(), :, :] if i < 2 else self.npa[self.middle_slice, :, :],

@@ -132,7 +132,7 @@ class RegistrationPointDataAquisition(object):
                 to=self.fixed_npa.shape[0] - 1,
                 command = self.on_slice_slider_value_change,
             )
-            self.fixed_slider.set(124)
+            self.fixed_slider.set(274)
             self.fixed_slider.pack()
             
             self.moving_slider = Scale(
@@ -141,7 +141,7 @@ class RegistrationPointDataAquisition(object):
                 to=self.moving_npa.shape[0] - 1,
                 command = self.on_slice_slider_value_change,
             )
-            self.moving_slider.set(100)
+            self.moving_slider.set(140)
             self.moving_slider.pack()
         
 

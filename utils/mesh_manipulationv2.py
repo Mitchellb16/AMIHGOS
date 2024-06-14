@@ -46,9 +46,9 @@ class TranslationButton():
         self.layout.addWidget(self.plus_button)
         
     def subtract_magnitude(self):
-        self.magnitude -= 1
+        self.magnitude -= .5
     def add_magnitude(self):
-        self.magnitude += 1
+        self.magnitude += .5
 
 class MeshManipulationWindow(QtWidgets.QWidget):
     def __init__(self, helmet_mesh, head_mesh, animal_name = 'Example', helmet_type = 'Flat'):
@@ -80,11 +80,9 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         self.layout.addWidget(plot_button)
 
         # Rotation button
-# =============================================================================
-#         rotate_button = QtWidgets.QPushButton("Rotate", self)
-#         rotate_button.clicked.connect(self.rotate_mesh)
-#         self.layout.addWidget(rotate_button)
-# =============================================================================
+        rotate_button = QtWidgets.QPushButton("Rotate", self)
+        rotate_button.clicked.connect(self.rotate_mesh)
+        self.layout.addWidget(rotate_button)
 
         # Expansion buttons
         expand_frame = QtWidgets.QFrame(self)
@@ -148,7 +146,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
 
     def rotate_mesh(self):
         # Implement your rotation logic here
-        print('This will be implemented in a later update')
+        self.rotation_angle += 10
         self.update_plotter()
 
     def expand_mesh_plus(self):
@@ -158,7 +156,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
 
     def expand_mesh_minus(self):
         self.scaling_factor -= 0.01
-        self.scaling_label.setText(f"{self.scaling_factor+.15:.2f}")
+        self.scaling_label.setText(f"{self.scaling_factor:.2f}")
         self.update_plotter()
 
     def translate_mesh(self):
@@ -247,7 +245,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         # therefor bounds[2] is the back of the head, which we are aligning to the
         # back of the helmet, then nudging it forward a little
         LR_offset = .7
-        PA_offset = 3
+        PA_offset = -9
         DV_offset = -3.5
         
         offset = [LR_offset,
