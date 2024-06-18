@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Tue Dec 19 11:06:40 2023
+Created on Tue Jun 18 12:51:37 2024
 
 @author: mitchell
 """
-
 import sys
 from datetime import date
 import pyvista as pv
@@ -13,60 +12,95 @@ from pyvistaqt import BackgroundPlotter
 from PyQt5 import QtWidgets
 import os
 
-class TranslationButton():
-    # Creating a translation button object that uses the main window functions
-    # because all the axes have similar functionality
-    def __init__(self, axis, window, layout):
-        self.axis = axis
+
+class ManipulationButton:
+    def __init__(self, label, window, layout):
+        self.label = label
         self.window = window
-        self.magnitude = 0
+        self.value = 0
         self.layout = layout
-        # add minus button
+        self.create_widgets()
+
+    def create_widgets(self):
+        # Add minus button
         self.minus_button = QtWidgets.QPushButton("-", self.window)
-        
-        # when clicked, modify magnitude and call translation function
-        self.minus_button.clicked.connect(lambda: 
-                                             (self.subtract_magnitude(), window.translate_mesh()))
-
+        self.minus_button.clicked.connect(self.on_minus_click)
         self.layout.addWidget(self.minus_button)
-        
-        
-        # add a label to track translation
-        self.translation_label = QtWidgets.QLabel(
-            self.axis +':' + str(self.magnitude), self.window)
-        self.layout.addWidget(self.translation_label)
-        
-        # add plus button
-        self.plus_button = QtWidgets.QPushButton("+", self.window)
-        
-        # when clicked, modify magnitude and call translation function
-        self.plus_button.clicked.connect(lambda: 
-                                             (self.add_magnitude(), window.translate_mesh()))
 
+        # Add a label to track the value
+        self.value_label = QtWidgets.QLabel(self.label + ':' + str(self.value), self.window)
+        self.layout.addWidget(self.value_label)
+
+        # Add plus button
+        self.plus_button = QtWidgets.QPushButton("+", self.window)
+        self.plus_button.clicked.connect(self.on_plus_click)
         self.layout.addWidget(self.plus_button)
-        
-    def subtract_magnitude(self):
-        self.magnitude -= .5
-    def add_magnitude(self):
-        self.magnitude += .5
+
+    def on_minus_click(self):
+        self.decrease_value()
+        self.update_value()
+
+    def on_plus_click(self):
+        self.increase_value()
+        self.update_value()
+
+    def update_value(self):
+        self.value_label.setText(self.label + ':' + str(self.value))
+        self.perform_action()
+
+    def decrease_value(self):
+        raise NotImplementedError("Subclasses should implement this!")
+
+    def increase_value(self):
+        raise NotImplementedError("Subclasses should implement this!")
+
+    def perform_action(self):
+        raise NotImplementedError("Subclasses should implement this!")
+
+class TranslationButton(ManipulationButton):
+    def __init__(self, axis, window, layout):
+        super().__init__(axis, window, layout)
+
+    def decrease_value(self):
+        self.value -= 0.5
+
+    def increase_value(self):
+        self.value += 0.5
+
+    def perform_action(self):
+        self.window.translate_mesh()
+
+class RotationButton(ManipulationButton):
+    def __init__(self, axis, window, layout, step_size=2):
+        self.step_size = step_size
+        super().__init__(axis, window, layout)
+
+    def decrease_value(self):
+        self.value -= self.step_size
+
+    def increase_value(self):
+        self.value += self.step_size
+
+    def perform_action(self):
+        self.window.rotate_mesh()
 
 class MeshManipulationWindow(QtWidgets.QWidget):
-    def __init__(self, helmet_mesh, head_mesh, animal_name = 'Example', helmet_type = 'Flat'):
+    def __init__(self, helmet_mesh, head_mesh, animal_name='Example', helmet_type='Flat'):
         super().__init__()
         self.helmet_type = helmet_type
         self.animal_name = animal_name
-        self.og_head_mesh, self.helmet_mesh = self.mesh_preprocess(head_mesh, helmet_mesh, name = self.animal_name)
-        
+        self.og_head_mesh, self.helmet_mesh = self.mesh_preprocess(head_mesh, helmet_mesh, name=self.animal_name)
+
         # Connect the destroyed signal of the window to the quit slot of the application
         self.destroyed.connect(QtWidgets.qApp.quit)
         # Connect the destroyed signal to the close_plotter method
         self.destroyed.connect(self.close_plotter)
-        
-        # set default transformations
-        self.offset = [0,0,0]
+
+        # Set default transformations
+        self.offset = [0, 0, 0]
         self.scaling_factor = 1.0
-        
-        # head mesh will catch all the transformations
+
+        # Head mesh will catch all the transformations
         self.head_mesh = self.og_head_mesh.copy(deep=True)
         self.setup_ui()
 
@@ -79,11 +113,16 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         plot_button.clicked.connect(self.create_pvplotter)
         self.layout.addWidget(plot_button)
 
-        # Rotation button
-        rotate_button = QtWidgets.QPushButton("Rotate", self)
-        rotate_button.clicked.connect(self.rotate_mesh)
-        self.layout.addWidget(rotate_button)
+        # Rotation frame and layout
+        rotation_frame = QtWidgets.QFrame(self)
+        rotation_layout = QtWidgets.QHBoxLayout(rotation_frame)
+        self.layout.addWidget(rotation_frame)
 
+        # Add Rotation buttons
+        self.rotation_button_X = RotationButton('Rotation X: ', self, rotation_layout)
+        self.rotation_button_Y = RotationButton('Rotation Y: ', self, rotation_layout)
+        self.rotation_button_Z = RotationButton('Rotation Z: ', self, rotation_layout)
+        
         # Expansion buttons
         expand_frame = QtWidgets.QFrame(self)
         expand_layout = QtWidgets.QHBoxLayout(expand_frame)
@@ -104,13 +143,13 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         translation_frame = QtWidgets.QFrame(self)
         translation_layout = QtWidgets.QHBoxLayout(translation_frame)
         self.layout.addWidget(translation_frame)
-        
-        # make dictionaries for each axis
+
+        # Make dictionaries for each axis
         self.LR_translation = TranslationButton('LR', self, translation_layout)
         self.PA_translation = TranslationButton('PA', self, translation_layout)
         self.DV_translation = TranslationButton('DV', self, translation_layout)
         self.translation_list = [self.LR_translation, self.PA_translation, self.DV_translation]
- 
+
         # Send for subtraction button (green)
         send_button = QtWidgets.QPushButton("Send for subtraction", self)
         send_button.clicked.connect(self.send_for_subtraction)
@@ -135,18 +174,16 @@ class MeshManipulationWindow(QtWidgets.QWidget):
     def create_pvplotter(self):
         self.plotter = BackgroundPlotter(off_screen=False, notebook=False)
         self.plotter.add_mesh(self.helmet_mesh)
-        self.head_actor = self.plotter.add_mesh(self.head_mesh, color = 'magenta')
+        self.head_actor = self.plotter.add_mesh(self.head_mesh, color='magenta')
         self.plotter.show_bounds(grid='front', location='outer', all_edges=True)
         self.plotter.show()
-    
+
     def close_plotter(self):
         # Close the PyVista plotter if it is initialized
         if self.plotter:
             self.plotter.close()
 
     def rotate_mesh(self):
-        # Implement your rotation logic here
-        self.rotation_angle += 10
         self.update_plotter()
 
     def expand_mesh_plus(self):
@@ -165,7 +202,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
     def send_for_subtraction(self):
         bool_mesh = self.helmet_mesh.boolean_difference(self.head_mesh)
         
-        # here we slice out the portion of the helmet with sharp edges, 
+        # Here we slice out the portion of the helmet with sharp edges, 
         # smooth it out, then plug it back in
         bounds = [-21, 20, -20, 20, -20, -3]
         clipped = bool_mesh.clip_box(bounds)
@@ -177,34 +214,50 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         smooth.fill_holes(hole_size=20, inplace=True)
         self.final_mesh = clipped + smooth
         self.save_button.setDisabled(False)
-        self.update_plotter(final_plot = True)
+        self.update_plotter(final_plot=True)
 
+# =============================================================================
+#     def save_mesh(self):
+#         self.save_file = 'helmets/' + str(date.today()) + self.animal_name + str(self.scaling_factor)[2:]+ 'DV_' + self.DV_translation + '.stl'
+#         self.final_mesh.extract_geometry().save(self.save_file)
+#         message = QtWidgets.QLabel(f'{self.save_file} successfully saved!')
+#         self.layout.addWidget(message)
+# =============================================================================
+        
     def save_mesh(self):
-        self.save_file = 'helmets/'+str(date.today())+self.animal_name+str(self.scaling_factor)[2:]+'.stl'
+        self.save_file = ('helmets/' + 
+                      str(date.today()) + 
+                      self.animal_name + 
+                      str(self.scaling_factor)[2:] + 
+                      'DV_' + 
+                      str(self.DV_translation.value) + 
+                      '.stl')
         self.final_mesh.extract_geometry().save(self.save_file)
         message = QtWidgets.QLabel(f'{self.save_file} successfully saved!')
         self.layout.addWidget(message)
 
-    def update_plotter(self, final_plot = False):
-        # remove the previous head actor
-        _ = self.plotter.remove_actor(self.head_actor, render = False)
+
+    def update_plotter(self, final_plot=False):
+        # Remove the previous head actor
+        _ = self.plotter.remove_actor(self.head_actor, render=False)
         
         if final_plot:
             self.plotter.clear()
             self.plotter.add_mesh(self.final_mesh)
-        
         else:
-            # gather and apply transformations
-            # scaling only in the LR direction
-            self.head_mesh = self.og_head_mesh.scale([self.scaling_factor, 
-                                  1, 
-                                  1])
-            self.head_mesh.points = self.head_mesh.points + [self.LR_translation.magnitude, 
-                                                  self.PA_translation.magnitude, 
-                                                  self.DV_translation.magnitude]
-            self.head_actor = self.plotter.add_mesh(self.head_mesh, color = 'magenta')
+            # Gather and apply transformations
+            # scaling
+            self.head_mesh = self.og_head_mesh.scale([self.scaling_factor, 1, 1])
+            # translation
+            self.head_mesh.points = self.head_mesh.points + [self.LR_translation.value, 
+                                                             self.PA_translation.value, 
+                                                             self.DV_translation.value]
+            # rotation
+            self.head_mesh.rotate_x(self.rotation_button_X.value, inplace=True)
+            self.head_mesh.rotate_y(self.rotation_button_Y.value, inplace=True)
+            self.head_mesh.rotate_z(self.rotation_button_Z.value, inplace=True)
+            self.head_actor = self.plotter.add_mesh(self.head_mesh, color='magenta')
             self.plotter.update()
-    
 
     def close_window(self):
         self.close()
@@ -212,11 +265,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
     def run(self):
         self.show()
 
-
-        
-    def mesh_preprocess(self, head_mesh, helmet_mesh, name='Example',
-                        separate = False, 
-                        scaling = 1.00):
+    def mesh_preprocess(self, head_mesh, helmet_mesh, name='Example', separate=False, scaling=1.00):
         """
         Given pyvista mesh of head stl, return a subtraction of the head from 
         the helmet template
@@ -224,49 +273,31 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         Returns
         -------
         helmet_mesh: pyvista mesh
-    
         """
     
         animal_name = name
         
-    
-        # scale up and rotate head mesh
-        # LR, PA, DV
-        head_mesh.scale([scaling,scaling,scaling], inplace=True)
+        # Scale up and rotate head mesh
+        head_mesh.scale([scaling, scaling, scaling], inplace=True)
         head_mesh.rotate_x(270, inplace=True)
         head_mesh = head_mesh.decimate(.5)
     
-        
-        # align the centers of both meshes at 0 then translate 
+        # Align the centers of both meshes at 0 then translate 
         helmet_mesh.points -= helmet_mesh.center
         head_mesh.points -= head_mesh.center
         
-        # format [LR, PA, DV] or [X, Y, Z]
-        # therefor bounds[2] is the back of the head, which we are aligning to the
-        # back of the helmet, then nudging it forward a little
+        # Format [LR, PA, DV] or [X, Y, Z]
         LR_offset = .7
         PA_offset = -9
         DV_offset = -3.5
         
         offset = [LR_offset,
-                  helmet_mesh.bounds[2]-head_mesh.bounds[2]+PA_offset, # 3
-                  helmet_mesh.bounds[-1]-head_mesh.bounds[-1] + DV_offset] #3.5
-        
-        head_mesh.points += offset
-        
-        # create text object for embossing
-        text = pv.Text3D(animal_name, depth=.9)
-        text.scale([2.5,2.5,2.5], inplace = True)
-        text.rotate_z(90, inplace=True)
-        if self.helmet_type == 'PET':
-            text_offset = [27,5,-11.8] #12.5
-        else:
-            text_offset = [31,5,-14.5]
-        text.points += text_offset
-        
-        # add text to helmet and chin to emboss
-        helmet_mesh = helmet_mesh + text
-        
+                  helmet_mesh.bounds[2] - head_mesh.bounds[2] + PA_offset,
+                  helmet_mesh.bounds[-1] - head_mesh.bounds[-1] + DV_offset]
+    
+        # Now translate the head mesh to match the helmet mesh
+        head_mesh.translate(offset, inplace=True)
+    
         return head_mesh, helmet_mesh
 
 # Example usage
