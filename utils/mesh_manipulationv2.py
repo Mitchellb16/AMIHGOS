@@ -174,6 +174,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
     def create_pvplotter(self):
         self.plotter = BackgroundPlotter(off_screen=False, notebook=False)
         self.plotter.add_mesh(self.helmet_mesh)
+        self.plotter.add_mesh(self.chin_mesh)
         self.head_actor = self.plotter.add_mesh(self.head_mesh, color='magenta')
         self.plotter.show_bounds(grid='front', location='outer', all_edges=True)
         self.plotter.show()
@@ -201,6 +202,10 @@ class MeshManipulationWindow(QtWidgets.QWidget):
 
     def send_for_subtraction(self):
         bool_mesh = self.helmet_mesh.boolean_difference(self.head_mesh)
+        self.chin_bool_mesh = self.chin_mesh.boolean_difference(self.head_mesh)
+        
+        # get rid of small residues resulting from chin topology
+        self.chin_bool_mesh.extract_largest(inplace=True)
         
         # Here we slice out the portion of the helmet with sharp edges, 
         # smooth it out, then plug it back in
@@ -216,13 +221,6 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         self.save_button.setDisabled(False)
         self.update_plotter(final_plot=True)
 
-# =============================================================================
-#     def save_mesh(self):
-#         self.save_file = 'helmets/' + str(date.today()) + self.animal_name + str(self.scaling_factor)[2:]+ 'DV_' + self.DV_translation + '.stl'
-#         self.final_mesh.extract_geometry().save(self.save_file)
-#         message = QtWidgets.QLabel(f'{self.save_file} successfully saved!')
-#         self.layout.addWidget(message)
-# =============================================================================
         
     def save_mesh(self):
         self.save_file = ('helmets/' + 
@@ -232,8 +230,13 @@ class MeshManipulationWindow(QtWidgets.QWidget):
                       'DV_' + 
                       str(self.DV_translation.value) + 
                       '.stl')
+        chin_save_file = ('helmets/' + 
+                          str(date.today()) + 
+                          self.animal_name + 
+                          'chinpiece.stl')
         self.final_mesh.extract_geometry().save(self.save_file)
-        message = QtWidgets.QLabel(f'{self.save_file} successfully saved!')
+        self.chin_bool_mesh.extract_geometry().save(chin_save_file)
+        message = QtWidgets.QLabel(f'{self.save_file} and chinpiece successfully saved!')
         self.layout.addWidget(message)
 
 
@@ -244,6 +247,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         if final_plot:
             self.plotter.clear()
             self.plotter.add_mesh(self.final_mesh)
+            self.plotter.add_mesh(self.chin_bool_mesh)
         else:
             # Gather and apply transformations
             # scaling
@@ -267,15 +271,29 @@ class MeshManipulationWindow(QtWidgets.QWidget):
 
     def mesh_preprocess(self, head_mesh, helmet_mesh, name='Example', separate=False, scaling=1.00):
         """
-        Given pyvista mesh of head stl, return a subtraction of the head from 
-        the helmet template
+        Given pyvista mesh of head stl, prepare proper positioning of head in helmet
     
         Returns
         -------
         helmet_mesh: pyvista mesh
         """
-    
-        animal_name = name
+        # add chin piece mesh for custom chin piece
+        chin_dir = 'templates/SubstractedChinPiece.stl'
+        self.chin_mesh = pv.read(chin_dir).triangulate(inplace = True)
+        
+        # position chin piece mesh
+        chin_offset = [0,5,-21]
+        self.chin_mesh.translate(chin_offset,inplace =True)
+        
+        # add text label for chin piece
+        chin_text = pv.Text3D(self.animal_name, depth=.9)
+        chin_text.scale([2.5,2.5,2.5], inplace = True)
+        chin_text.rotate_z(-90, inplace=True)
+        chin_text.rotate_x(180, inplace=True)
+        chin_text_offset = [28,5,-19.5]
+        chin_text.translate(chin_text_offset, inplace=True)
+        self.chin_mesh = self.chin_mesh + chin_text
+        
         
         # Scale up and rotate head mesh
         head_mesh.scale([scaling, scaling, scaling], inplace=True)
@@ -297,6 +315,19 @@ class MeshManipulationWindow(QtWidgets.QWidget):
     
         # Now translate the head mesh to match the helmet mesh
         head_mesh.translate(offset, inplace=True)
+        
+        # create text object for embossing
+        text = pv.Text3D(self.animal_name, depth=.9)
+        text.scale([2.5,2.5,2.5], inplace = True)
+        text.rotate_z(90, inplace=True)
+        if self.helmet_type == 'PET':
+            text_offset = [27,5,-11.8] #12.5
+        else:
+            text_offset = [31,5,-14.5]
+        text.points += text_offset
+        
+        # add text to helmet and chin to emboss
+        helmet_mesh = helmet_mesh + text
     
         return head_mesh, helmet_mesh
 
