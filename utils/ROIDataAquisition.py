@@ -123,9 +123,11 @@ class ROIDataAquisition(object):
         # make a frame to put all of the buttons in
         self.button_frame = Frame(self.window)
         
-        self.addroi_button = Button(self.button_frame,
-            text="Add ROI", command = self.add_roi)
-        self.addroi_button.pack(side='left')
+# =============================================================================
+#         self.addroi_button = Button(self.button_frame,
+#             text="Add ROI", command = self.add_roi)
+#         self.addroi_button.pack(side='left')
+# =============================================================================
 # =============================================================================
 #         self.clearlast_button = Button(self.window,
 #             text="Clear Last", command = self.clear_last
@@ -363,6 +365,8 @@ class ROIDataAquisition(object):
         -------
         Cropped moving image
         """
+        # add the current roi
+        self.add_roi()
         
         # get rois from gui
         specified_rois = self.get_rois()

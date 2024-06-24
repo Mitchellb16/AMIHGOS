@@ -476,28 +476,31 @@ class RegistrationPointDataAquisition(object):
         message_label.pack(pady=10)
         
         # get user entry for name to go on helmet
-        entry_label = Label(self.popup, text = 'Type animal name and press enter')
+        entry_label = Label(self.popup, text = 'Type animal name for helmet labeling')
         entry_label.pack()
         fileVar = StringVar(self.popup, 'Animal_name')
         self.animal_name='TEST'
-        name_entry = Entry(self.popup, textvariable=fileVar)
-        name_entry.bind("<Return>", self.name_change)
-        name_entry.pack()
+        self.name_entry = Entry(self.popup, textvariable=fileVar)
+# =============================================================================
+#         self.name_entry.bind("<Return>", self.name_change)
+# =============================================================================
+        self.name_entry.pack()
         
         # continue to stl generation
         continue_button = Button(self.popup, text="Continue", command=self.launch_segmentation)
         continue_button.pack()
         
     # command to set animal name upon user entry
-    def name_change(self, name_entry):
-        self.animal_name = name_entry.widget.get()
+    def name_change(self):
+        self.animal_name = self.name_entry.get()
         
     def launch_segmentation(self):
         # output registration for debugging
 # =============================================================================
 #         sitk.WriteImage(self.moving_resampled, fileName=f'nifti_files/registered/registered_{self.animal_name}.nii.gz')
 # =============================================================================
-        
+        # get animal name for helmet label
+        self.name_change()
         # destroy windows for mesh manipulation
         self.popup.destroy()
         self.root.destroy()
