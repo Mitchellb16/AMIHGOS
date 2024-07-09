@@ -201,11 +201,13 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         self.update_plotter()
 
     def send_for_subtraction(self):
-        bool_mesh = self.helmet_mesh.boolean_difference(self.head_mesh)
+
         self.chin_bool_mesh = self.chin_mesh.boolean_difference(self.head_mesh)
         
         # get rid of small residues resulting from chin topology
         self.chin_bool_mesh.extract_largest(inplace=True)
+        
+        bool_mesh = self.helmet_mesh.boolean_difference(self.head_mesh)
         
         # Here we slice out the portion of the helmet with sharp edges, 
         # smooth it out, then plug it back in
