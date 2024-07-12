@@ -201,11 +201,15 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         self.update_plotter()
 
     def send_for_subtraction(self):
+        if not self.head_mesh.is_manifold:
+            print("Warning, non-manifold head segmentation, may cause crashing during subtraction")
 
         self.chin_bool_mesh = self.chin_mesh.boolean_difference(self.head_mesh)
         
         # get rid of small residues resulting from chin topology
-        self.chin_bool_mesh.extract_largest(inplace=True)
+# =============================================================================
+#         self.chin_bool_mesh.extract_largest(inplace=True)
+# =============================================================================
         
         bool_mesh = self.helmet_mesh.boolean_difference(self.head_mesh)
         
@@ -283,8 +287,11 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         chin_dir = 'templates/SubstractedChinPiece.stl'
         self.chin_mesh = pv.read(chin_dir).triangulate(inplace = True)
         
+        # Zero the center of chin mesh
+        self.chin_mesh.points -= self.chin_mesh.center
+        
         # position chin piece mesh
-        chin_offset = [0,5,-21]
+        chin_offset = [0,11.5,-27.2]
         self.chin_mesh.translate(chin_offset,inplace =True)
         
         # add text label for chin piece
