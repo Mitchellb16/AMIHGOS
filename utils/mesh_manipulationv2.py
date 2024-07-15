@@ -231,6 +231,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
 #         self.chin_mesh.flip_normals()
 # =============================================================================
         if self.chin_subtract_bool:
+            print(self.chin_mesh.is_manifold)
             self.chin_bool_mesh = self.chin_mesh.boolean_difference(self.head_mesh)
         
             # get rid of small residues resulting from chin topology

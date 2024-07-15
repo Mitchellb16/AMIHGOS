@@ -160,7 +160,7 @@ class SegmentationScreen:
         self.root.destroy()
         helmet_mesh_file = self.helmet_selection.get()
         helmet_mesh = pv.read(helmet_mesh_file).triangulate(inplace = True)
-        head_mesh = pv.read(self.output_dir).traingulate(inplace = True)
+        head_mesh = pv.read(self.output_dir).triangulate(inplace = True)
         
         # run mesh manipulation window
         # setting up Qt application stuff
