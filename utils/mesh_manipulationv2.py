@@ -90,6 +90,11 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         self.helmet_type = helmet_type
         self.animal_name = animal_name
         self.og_head_mesh, self.helmet_mesh = self.mesh_preprocess(head_mesh, helmet_mesh, name=self.animal_name)
+        
+# =============================================================================
+#         # flip normals on helmet mesh
+#         self.helmet_mesh.flip_normals()
+# =============================================================================
 
         # Connect the destroyed signal of the window to the quit slot of the application
         self.destroyed.connect(QtWidgets.qApp.quit)
@@ -150,12 +155,19 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         self.DV_translation = TranslationButton('DV', self, translation_layout)
         self.translation_list = [self.LR_translation, self.PA_translation, self.DV_translation]
 
+        # toggle for chinpiece subtraction
+        self.chin_toggle = QtWidgets.QCheckBox("Subtract chin piece?", self)
+        self.chin_toggle.clicked.connect(self.ignore_chin)
+        # variable for whether we ignore chinpiece or not
+        self.chin_subtract_bool = False
+        self.layout.addWidget(self.chin_toggle)
+
         # Send for subtraction button (green)
         send_button = QtWidgets.QPushButton("Send for subtraction", self)
         send_button.clicked.connect(self.send_for_subtraction)
         send_button.setStyleSheet("background-color: green")
         self.layout.addWidget(send_button)
-
+        
         # Save button (greyed out initially)
         self.save_button = QtWidgets.QPushButton("Save", self)
         self.save_button.clicked.connect(self.save_mesh)
@@ -199,17 +211,30 @@ class MeshManipulationWindow(QtWidgets.QWidget):
 
     def translate_mesh(self):
         self.update_plotter()
+    
+    def ignore_chin(self):
+        
+        if self.chin_toggle.isChecked():
+            
+            # make chin subtraction variable true
+            self.chin_subtract_bool = True
+            
+        else:
+            self.chin_subtract_bool = False
+    
 
     def send_for_subtraction(self):
         if not self.head_mesh.is_manifold:
             print("Warning, non-manifold head segmentation, may cause crashing during subtraction")
-
-        self.chin_bool_mesh = self.chin_mesh.boolean_difference(self.head_mesh)
         
-        # get rid of small residues resulting from chin topology
 # =============================================================================
-#         self.chin_bool_mesh.extract_largest(inplace=True)
+#         self.chin_mesh.flip_normals()
 # =============================================================================
+        if self.chin_subtract_bool:
+            self.chin_bool_mesh = self.chin_mesh.boolean_difference(self.head_mesh)
+        
+            # get rid of small residues resulting from chin topology
+            self.chin_bool_mesh.extract_largest(inplace=True)
         
         bool_mesh = self.helmet_mesh.boolean_difference(self.head_mesh)
         
@@ -241,7 +266,9 @@ class MeshManipulationWindow(QtWidgets.QWidget):
                           self.animal_name + 
                           'chinpiece.stl')
         self.final_mesh.extract_geometry().save(self.save_file)
-        self.chin_bool_mesh.extract_geometry().save(chin_save_file)
+        if self.chin_subtract_bool: 
+            self.chin_bool_mesh.extract_geometry().save(chin_save_file)
+            
         message = QtWidgets.QLabel(f'{self.save_file} and chinpiece successfully saved!')
         self.layout.addWidget(message)
 
@@ -253,7 +280,8 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         if final_plot:
             self.plotter.clear()
             self.plotter.add_mesh(self.final_mesh)
-            self.plotter.add_mesh(self.chin_bool_mesh)
+            if self.chin_subtract_bool:
+                self.plotter.add_mesh(self.chin_bool_mesh)
         else:
             # Gather and apply transformations
             # scaling
@@ -291,7 +319,8 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         self.chin_mesh.points -= self.chin_mesh.center
         
         # position chin piece mesh
-        chin_offset = [0,11.5,-27.2]
+        # Format [LR, PA, DV] or [X, Y, Z]
+        chin_offset = [0,8,-27.5]
         self.chin_mesh.translate(chin_offset,inplace =True)
         
         # add text label for chin piece

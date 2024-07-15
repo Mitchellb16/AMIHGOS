@@ -104,16 +104,14 @@ class RegistrationPointDataAquisition(object):
 
     def create_ui(self):
         # Create buttons for clearing and saving manual registration points
-# =============================================================================
-#         self.clearlast_button = Button(self.window,
-#             text="Clear Last", command = self.clear_last
-#         ).grid(column = 1, row = 1)
-# 
-#         self.clearall_button = Button(self.window,
-#             text="Clear All", command = self.clear_all
-#         ).grid(column = 1, row = 2)
-#         
-# =============================================================================
+        self.clearlast_button = Button(self.window,
+            text="Clear Last", command = self.clear_last
+        ).grid(column = 1, row = 1)
+
+        self.clearall_button = Button(self.window,
+            text="Clear All", command = self.clear_all
+        ).grid(column = 1, row = 2)
+        
         self.save_points_button = Button(self.window, 
                                          text = 'Save Points and Register', 
                                          command = self.save_points).grid(column = 1, row = 3)
@@ -266,7 +264,7 @@ class RegistrationPointDataAquisition(object):
         self.fixed_fig.canvas.draw_idle()
         self.moving_fig.canvas.draw_idle()
 
-    def clear_all(self, button):
+    def clear_all(self):
         """
         Get rid of all the data.
         """
@@ -275,7 +273,7 @@ class RegistrationPointDataAquisition(object):
         del self.click_history[:]
         self.update_display()
 
-    def clear_last(self, button):
+    def clear_last(self):
         """
         Remove last point or point-pair addition (depends on whether the interface is used for localizing point pairs or
         evaluation of registration).
