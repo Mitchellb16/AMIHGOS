@@ -10,6 +10,7 @@ from datetime import date
 import pyvista as pv
 from pyvistaqt import BackgroundPlotter
 from PyQt5 import QtWidgets
+from PyQt5.QtCore import Qt
 import os
 
 
@@ -154,7 +155,20 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         self.PA_translation = TranslationButton('PA', self, translation_layout)
         self.DV_translation = TranslationButton('DV', self, translation_layout)
         self.translation_list = [self.LR_translation, self.PA_translation, self.DV_translation]
+        
+        # make slider for smoothing head mesh
+        # Create a label to display the slider value
+        self.smoothing_label = QtWidgets.QLabel("Smoothing: 0.00", self)
+        self.smoothing_label.setAlignment(Qt.AlignCenter)
+        self.layout.addWidget(self.smoothing_label)
 
+        # Create a slider
+        self.smoothing_slider = QtWidgets.QSlider(Qt.Horizontal, self)
+        self.smoothing_slider.setRange(0, 100)  # Integer range for better precision
+        self.smoothing_slider.setValue(0)
+        self.smoothing_slider.valueChanged.connect(self.update_smoothing_label)
+        self.layout.addWidget(self.smoothing_slider)
+                    
         # toggle for chinpiece subtraction
         self.chin_toggle = QtWidgets.QCheckBox("Subtract chin piece?", self)
         self.chin_toggle.clicked.connect(self.ignore_chin)
@@ -211,6 +225,11 @@ class MeshManipulationWindow(QtWidgets.QWidget):
 
     def translate_mesh(self):
         self.update_plotter()
+        
+    def update_smoothing_label(self,value):
+        float_value = value/100.0
+        self.smoothing_label.setText(f"Smoothing: {float_value:.2f}")
+        self.update_plotter()
     
     def ignore_chin(self):
         
@@ -227,18 +246,20 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         if not self.head_mesh.is_manifold:
             print("Warning, non-manifold head segmentation, may cause crashing during subtraction")
         
-# =============================================================================
-#         self.chin_mesh.flip_normals()
-# =============================================================================
+        # save the smoothed head mesh
+        head_mesh_filename = f'head_stls/{self.animal_name}_smoothed.stl'
+        self.head_mesh.save(head_mesh_filename)
+        print(f'Smoothed headmesh saved at {head_mesh_filename}')
+        
         if self.chin_subtract_bool:
             print(self.chin_mesh.is_manifold)
             self.chin_bool_mesh = self.chin_mesh.boolean_difference(self.head_mesh)
         
             # get rid of small residues resulting from chin topology
             self.chin_bool_mesh.extract_largest(inplace=True)
-        
+            
         bool_mesh = self.helmet_mesh.boolean_difference(self.head_mesh)
-        
+                
         # Here we slice out the portion of the helmet with sharp edges, 
         # smooth it out, then plug it back in
         bounds = [-21, 20, -20, 20, -20, -3]
@@ -250,6 +271,11 @@ class MeshManipulationWindow(QtWidgets.QWidget):
                                        normalize_coordinates=True)
         smooth.fill_holes(hole_size=20, inplace=True)
         self.final_mesh = clipped + smooth
+        self.final_mesh = self.final_mesh.extract_surface()
+# =============================================================================
+#         # get rid of small residues resulting from topology and normals 
+#         self.final_mesh.extract_largest(inplace=True)
+# =============================================================================
         self.save_button.setDisabled(False)
         self.update_plotter(final_plot=True)
 
@@ -287,6 +313,11 @@ class MeshManipulationWindow(QtWidgets.QWidget):
             # Gather and apply transformations
             # scaling
             self.head_mesh = self.og_head_mesh.scale([self.scaling_factor, 1, 1])
+            
+            #smoothing 
+            self.head_mesh = self.head_mesh.smooth(n_iter = 20,
+                                                   relaxation_factor = self.smoothing_slider.value()/100.0)
+            
             # translation
             self.head_mesh.points = self.head_mesh.points + [self.LR_translation.value, 
                                                              self.PA_translation.value, 
