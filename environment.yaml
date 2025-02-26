@@ -1,0 +1,14 @@
+name: AMIHGOSV3
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12.1
+  - pip=25.0
+  - pip:
+    - simpleitk
+    - vtk==9.3.0
+    - pyvistaqt
+    - pyqt5>=5.15
+
+
