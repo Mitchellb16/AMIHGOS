@@ -24,7 +24,7 @@ We ensure AMIHGOS has all the correct Python tools to run using [conda environme
    ```
 4. Create a conda environment from the amihgos-env.yml file in the AMIHGOS folder. This will take maybe 2 minutes at most and is the usual source of errors, add an issue to this repo if issues arise. 
    ```
-   conda env create -f amihgos-env.yml -n AMIHGOS
+   conda env create -f environment.yaml -n AMIHGOS
    ```
 5. Activate the conda environment you just created
    ```
