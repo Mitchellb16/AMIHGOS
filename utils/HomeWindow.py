@@ -13,6 +13,7 @@ from tkinter import filedialog
 from utils.mesh_manipulationv2 import MeshManipulationWindow 
 import pyvista as pv
 import sys
+import os
 from PyQt5 import QtWidgets
 from .sitk2vtk import *
 from .vtkutils import *
@@ -96,7 +97,7 @@ class HomeWindow(object):
         self.stl_file_label.grid(column = 1, row = 9, sticky = 's')
         
         # define helmet options for dropdown
-        helmet_options = ['templates/Flat_helmet.STL', 'templates/winged_helmet.stl']
+        helmet_options = os.listdir('templates/')
         
         # default is flat helmet
         self.helmet_selection = StringVar()
@@ -146,9 +147,8 @@ class HomeWindow(object):
         self.root.destroy()
         
         # load files
-        helmet_mesh_file = self.helmet_selection.get()
-        helmet_mesh = pv.read(helmet_mesh_file).triangulate(inplace = True)
-        head_mesh = pv.read(self.stl_file)
+        helmet_mesh_file = 'templates/' + self.helmet_selection.get()
+        head_mesh_file = self.stl_file
         
         # run mesh manipulation window
         # setting up Qt application stuff
@@ -166,7 +166,7 @@ class HomeWindow(object):
             window.run()
             sys.exit(app.exec_())
         else:
-            window = MeshManipulationWindow(helmet_mesh, head_mesh, 
+            window = MeshManipulationWindow(helmet_mesh_file, head_mesh_file, 
                                             animal_name)
             window.run()
             sys.exit(app.exec_())

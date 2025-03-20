@@ -125,6 +125,8 @@ class SegmentationScreen:
 # =============================================================================
         mesh3 = vtkutils.smoothMesh(mesh_cleaned_parts, nIterations=500)
         mesh_cleaned_parts = None
+        
+       
 # =============================================================================
 #         vtkutils.writeMesh(mesh3, 'head_stls/smoothed.stl')
 # =============================================================================
@@ -159,8 +161,7 @@ class SegmentationScreen:
     def run_mesh_manipulation_window(self):
         self.root.destroy()
         helmet_mesh_file = self.helmet_selection.get()
-        helmet_mesh = pv.read(helmet_mesh_file).triangulate(inplace = True)
-        head_mesh = pv.read(self.output_dir).triangulate(inplace = True)
+        head_mesh_file = self.output_dir
         
         # run mesh manipulation window
         # setting up Qt application stuff
@@ -169,7 +170,7 @@ class SegmentationScreen:
         else:
             app = QtWidgets.QApplication.instance()
         app.setQuitOnLastWindowClosed(True) 
-        window = MeshManipulationWindow(helmet_mesh, head_mesh, self.animal_name)
+        window = MeshManipulationWindow(helmet_mesh_file, head_mesh_file, self.animal_name)
         window.run()
         sys.exit(app.exec_())
 

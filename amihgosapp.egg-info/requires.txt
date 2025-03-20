@@ -1,0 +1,3 @@
+SimpleITK
+pyvista
+PyQt5

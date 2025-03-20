@@ -1,0 +1,2 @@
+[console_scripts]
+amihgos = scripts.run_amihgos:main

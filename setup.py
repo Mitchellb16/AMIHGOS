@@ -9,9 +9,9 @@ Created on Fri Mar 14 15:14:39 2025
 from setuptools import setup, find_packages
 
 setup(
-    name="amighosapp",
+    name="amihgosapp",
     version="0.1.0",
-    description="AMIGHOS Helmet Segmentation and Processing Tool",
+    description="AMIHGOS Helmet Segmentation and Processing Tool",
     author="Mitchell", 
     packages=find_packages(),
     include_package_data=True,
@@ -23,7 +23,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'amighos=scripts.run_amighos:main',
+            'amihgos=scripts.run_amihgos:main',
         ],
     },
 )

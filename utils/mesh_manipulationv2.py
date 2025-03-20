@@ -8,6 +8,7 @@ Created on Tue Jun 18 12:51:37 2024
 import sys
 from datetime import date
 import pyvista as pv
+import pymeshfix
 from pyvistaqt import BackgroundPlotter
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import Qt
@@ -86,9 +87,25 @@ class RotationButton(ManipulationButton):
         self.window.rotate_mesh()
 
 class MeshManipulationWindow(QtWidgets.QWidget):
-    def __init__(self, helmet_mesh, head_mesh, animal_name='Example', helmet_type='Flat'):
+    def __init__(self, helmet_mesh_file, head_mesh_file, animal_name='Example'):
         super().__init__()
-        self.helmet_type = helmet_type
+        print(head_mesh_file)
+        # load helmet and head meshes
+        self.helmet_mesh_file = helmet_mesh_file
+        self.head_mesh_file = head_mesh_file
+        helmet_mesh = pv.read(self.helmet_mesh_file).triangulate(inplace = True)
+        head_mesh = pv.read(self.head_mesh_file).triangulate(inplace = True)
+        
+        # clean the head_mesh
+        head_mesh.clean(inplace=True)
+    
+        if 'Flat' in helmet_mesh_file:
+            self.chin_mesh_file = 'templates/FlatChinPiece.stl'
+            
+        # we should make this more universal in the future
+        else:
+            self.chin_mesh_file = 'templates/WingedChinPieceTemplate2025.stl'
+            
         self.animal_name = animal_name
         self.og_head_mesh, self.helmet_mesh = self.mesh_preprocess(head_mesh, helmet_mesh, name=self.animal_name)
         
@@ -244,7 +261,14 @@ class MeshManipulationWindow(QtWidgets.QWidget):
 
     def send_for_subtraction(self):
         if not self.head_mesh.is_manifold:
-            print("Warning, non-manifold head segmentation, may cause crashing during subtraction")
+            print("Warning, non-manifold head segmentation, attempting repair\
+            may cause crashing during subtraction")
+            
+            meshfix = pymeshfix.MeshFix(self.head_mesh)
+            meshfix.repair()
+            
+            self.head_mesh = meshfix.mesh              
+                               
         
         # save the smoothed head mesh
         head_mesh_filename = f'head_stls/{self.animal_name}_smoothed.stl'
@@ -259,6 +283,9 @@ class MeshManipulationWindow(QtWidgets.QWidget):
             self.chin_bool_mesh.extract_largest(inplace=True)
             
         bool_mesh = self.helmet_mesh.boolean_difference(self.head_mesh)
+# =============================================================================
+#         bool_mesh = bool_mesh.extract_largest()
+# =============================================================================
                 
         # Here we slice out the portion of the helmet with sharp edges, 
         # smooth it out, then plug it back in
@@ -343,9 +370,9 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         -------
         helmet_mesh: pyvista mesh
         """
+        print('before preprocessing, head mesh is manifold:', head_mesh.is_manifold)
         # add chin piece mesh for custom chin piece
-        chin_dir = 'templates/SubstractedChinPiece.stl'
-        self.chin_mesh = pv.read(chin_dir).triangulate(inplace = True)
+        self.chin_mesh = pv.read(self.chin_mesh_file).triangulate(inplace = True)
         
         # Zero the center of chin mesh
         self.chin_mesh.points -= self.chin_mesh.center
@@ -368,12 +395,16 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         # Scale up and rotate head mesh
         head_mesh.scale([scaling, scaling, scaling], inplace=True)
         head_mesh.rotate_x(270, inplace=True)
-        head_mesh = head_mesh.decimate(.5)
+        print('after scaling and rotating, head mesh is manifold:', head_mesh.is_manifold)
+# =============================================================================
+#         head_mesh = head_mesh.decimate_pro(.5, preserve_topology=True)
+#         print('after decimating, head mesh is manifold:', head_mesh.is_manifold)
+# =============================================================================
     
         # Align the centers of both meshes at 0 then translate 
         helmet_mesh.points -= helmet_mesh.center
         head_mesh.points -= head_mesh.center
-        
+        print('after centering, head mesh is manifold:', head_mesh.is_manifold)
         # Format [LR, PA, DV] or [X, Y, Z]
         LR_offset = .7
         PA_offset = -9
@@ -385,12 +416,12 @@ class MeshManipulationWindow(QtWidgets.QWidget):
     
         # Now translate the head mesh to match the helmet mesh
         head_mesh.translate(offset, inplace=True)
-        
+        print('after translating, head mesh is manifold:', head_mesh.is_manifold)
         # create text object for embossing
         text = pv.Text3D(self.animal_name, depth=.9)
         text.scale([2.5,2.5,2.5], inplace = True)
         text.rotate_z(90, inplace=True)
-        if self.helmet_type == 'PET':
+        if 'Wing' in self.helmet_mesh_file:
             text_offset = [27,5,-11.8] #12.5
         else:
             text_offset = [31,5,-14.5]
@@ -414,11 +445,13 @@ if __name__ == '__main__':
     
     # Add your helmet_mesh and head_mesh here
     head_file = 'head_stls/TEST.stl'
-    head_mesh = pv.read(head_file)
     
     helmet_mesh_file = 'templates/Flat_helmet.STL'
-    helmet_mesh = pv.read(helmet_mesh_file).triangulate(inplace = True)
+    # for testing winged helmet file
+# =============================================================================
+#     helmet_mesh_file = 'templates/WingedHelmetTemplate.stl'
+# =============================================================================
     
-    window = MeshManipulationWindow(helmet_mesh, head_mesh, helmet_type = 'Flat')
+    window = MeshManipulationWindow(helmet_mesh_file, head_file)
     window.run()
     sys.exit(app.exec_())

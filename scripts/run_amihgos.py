@@ -4,20 +4,23 @@
 """
 Main entry point for AMIHGOS application
 """
+
 import os
 import sys
 
 def main():
-    """Main entry point for the application"""
-    # During transition, we'll continue to use the old code structure
-    # Later, this will be updated to use the new module structure
-    from utils.HomeWindow import HomeWindow
+    # Add project root to path for imports
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+    
+    # Set working directory to project root for consistent file access
+    os.chdir(project_root)
+    
+    # Now launch the app
+    from amihgosapp.gui.home_window import HomeWindow
     home = HomeWindow()
     home.run()
 
 if __name__ == "__main__":
-    # Add project root to path for development mode
-    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    if project_root not in sys.path:
-        sys.path.insert(0, project_root)
     main()
