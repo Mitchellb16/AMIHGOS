@@ -25,7 +25,7 @@ class HomeWindow:
     """
     Main application window for AMIHGOS featuring:
     - File selection for NIFTI/DICOM images
-    - STL file loading for helmet subtraction
+    - STL file loading for subtraction
     - ROI selection workflow
     - Links to documentation
     """

@@ -18,7 +18,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from amihgosapp.utils.resource_utils import get_image_path
 
 # Import from old locations for modules not yet migrated
-from utils.RegistrationPointDataAquisition import RegistrationPointDataAquisition
+from amihgosapp.core.registration import RegistrationPointDataAquisition
 
 
 class ROIDataAcquisition:

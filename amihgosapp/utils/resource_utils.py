@@ -11,14 +11,19 @@ import os
 
 # Base paths
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+resources_path = os.path.join('amihgosapp','resources')
 
 def get_image_path(image_name):
     """Get absolute path to an image resource"""
-    return os.path.join(_PROJECT_ROOT, 'images', image_name)
+    return os.path.join(_PROJECT_ROOT, resources_path,'images', image_name)
 
 def get_template_path(template_name):
     """Get absolute path to a template resource"""
-    return os.path.join(_PROJECT_ROOT, 'templates', template_name)
+    return os.path.join(_PROJECT_ROOT, resources_path, 'templates', template_name)
+
+def get_ct_path(ct_name):
+    """Get absolute path to a CT resource"""
+    return os.path.join(_PROJECT_ROOT, resources_path, 'ct_files', ct_name)
 
 def get_output_path(filename, subdir='head_stls'):
     """Get absolute path for an output file"""
