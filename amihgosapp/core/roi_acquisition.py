@@ -16,9 +16,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 # Import from new locations when available
 from amihgosapp.utils.resource_utils import get_image_path
-
-# Import from old locations for modules not yet migrated
-from amihgosapp.core.registration import RegistrationPointDataAquisition
+from amihgosapp.core.registration_acquisition import RegistrationPointDataAcquisition
 
 
 class ROIDataAcquisition:
@@ -435,7 +433,7 @@ class ROIDataAcquisition:
         fixed_window_level = [39, 60]
         
         # Launch registration
-        RegistrationPointDataAquisition(
+        RegistrationPointDataAcquisition(
             self.image,
             self.frames_list[2],
             self.root,
