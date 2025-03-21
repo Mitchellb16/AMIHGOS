@@ -1,47 +1,50 @@
-#! /usr/bin/env python
-
-
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-A collection of VTK functions for processing surfaces and volume.
+A collection of VTK functions for processing surfaces and volumes.
 
-Written by David T. Chen from the National Institute of Allergy and
+Originally written by David T. Chen from the National Institute of Allergy and
 Infectious Diseases, dchen@mail.nih.gov.
 It is covered by the Apache License, Version 2.0:
 http://www.apache.org/licenses/LICENSE-2.0
+
+Reorganized and optimized as part of the AMIHGOS project migration by Mitchell Bishop and Claude AI.
 """
 
-from __future__ import print_function
-
-# import gc
 import sys
 import time
 import traceback
-
 import vtk
 
 
-#
-#  timing knick knacks
-#
-
-
-def roundThousand(x):
+def round_thousand(x):
+    """Round a number to the nearest thousandth for display."""
     y = int(1000.0 * x + 0.5)
     return str(float(y) * .001)
 
 
-def elapsedTime(start_time):
-    dt = roundThousand(time.perf_counter() - start_time)
+def elapsed_time(start_time):
+    """Print the elapsed time since start_time in seconds."""
+    dt = round_thousand(time.perf_counter() - start_time)
     print("    ", dt, "seconds")
 
 
-#
-#  Isosurface extraction
-#
-
-
-def extractSurface(vol, isovalue=0.0):
-    """Extract an isosurface from a volume."""
+def extract_surface(vol, isovalue=0.0):
+    """
+    Extract an isosurface from a volume.
+    
+    Parameters
+    ----------
+    vol : vtk.vtkImageData
+        The volume data
+    isovalue : float, optional
+        The isovalue to extract, by default 0.0
+        
+    Returns
+    -------
+    vtk.vtkPolyData
+        The extracted surface mesh
+    """
     try:
         t = time.perf_counter()
         iso = vtk.vtkContourFilter()
@@ -54,10 +57,10 @@ def extractSurface(vol, isovalue=0.0):
         print("Surface extracted")
         mesh = iso.GetOutput()
         print("    ", mesh.GetNumberOfPolys(), "polygons")
-        elapsedTime(t)
+        elapsed_time(t)
         iso = None
         return mesh
-    except BaseException:
+    except Exception:
         print("Iso-surface extraction failed")
         exc_type, exc_value, exc_traceback = sys.exc_info()
         traceback.print_exception(
@@ -65,17 +68,28 @@ def extractSurface(vol, isovalue=0.0):
     return None
 
 
-#
-#  Mesh filtering
-#
-def cleanMesh(mesh, connectivityFilter=False):
-    """Clean a mesh using VTK's CleanPolyData filter."""
+def clean_mesh(mesh, connectivity_filter=False):
+    """
+    Clean a mesh using VTK's CleanPolyData filter.
+    
+    Parameters
+    ----------
+    mesh : vtk.vtkPolyData
+        The input mesh to clean
+    connectivity_filter : bool, optional
+        Whether to also apply connectivity filtering, by default False
+        
+    Returns
+    -------
+    vtk.vtkPolyData
+        The cleaned mesh
+    """
     try:
         t = time.perf_counter()
         connect = vtk.vtkPolyDataConnectivityFilter()
         clean = vtk.vtkCleanPolyData()
 
-        if (connectivityFilter):
+        if connectivity_filter:
             if vtk.vtkVersion.GetVTKMajorVersion() >= 6:
                 connect.SetInputData(mesh)
             else:
@@ -92,11 +106,11 @@ def cleanMesh(mesh, connectivityFilter=False):
         print("Surface cleaned")
         m2 = clean.GetOutput()
         print("    ", m2.GetNumberOfPolys(), "polygons")
-        elapsedTime(t)
+        elapsed_time(t)
         clean = None
         connect = None
         return m2
-    except BaseException:
+    except Exception:
         print("Surface cleaning failed")
         exc_type, exc_value, exc_traceback = sys.exc_info()
         traceback.print_exception(
@@ -104,12 +118,26 @@ def cleanMesh(mesh, connectivityFilter=False):
     return None
 
 
-def smoothMesh(mesh, nIterations=10):
-    """Smooth a mesh using VTK's WindowedSincPolyData filter."""
+def smooth_mesh(mesh, n_iterations=10):
+    """
+    Smooth a mesh using VTK's WindowedSincPolyData filter.
+    
+    Parameters
+    ----------
+    mesh : vtk.vtkPolyData
+        The input mesh to smooth
+    n_iterations : int, optional
+        Number of smoothing iterations, by default 10
+        
+    Returns
+    -------
+    vtk.vtkPolyData
+        The smoothed mesh
+    """
     try:
         t = time.perf_counter()
         smooth = vtk.vtkWindowedSincPolyDataFilter()
-        smooth.SetNumberOfIterations(nIterations)
+        smooth.SetNumberOfIterations(n_iterations)
         if vtk.vtkVersion.GetVTKMajorVersion() >= 6:
             smooth.SetInputData(mesh)
         else:
@@ -118,10 +146,10 @@ def smoothMesh(mesh, nIterations=10):
         print("Surface smoothed")
         m2 = smooth.GetOutput()
         print("    ", m2.GetNumberOfPolys(), "polygons")
-        elapsedTime(t)
+        elapsed_time(t)
         smooth = None
         return m2
-    except BaseException:
+    except Exception:
         print("Surface smoothing failed")
         exc_type, exc_value, exc_traceback = sys.exc_info()
         traceback.print_exception(
@@ -129,10 +157,26 @@ def smoothMesh(mesh, nIterations=10):
     return None
 
 
-def rotateMesh(mesh, axis=1, angle=0):
-    """Rotate a mesh about an arbitrary axis.  Angle is in degrees. """
+def rotate_mesh(mesh, axis=1, angle=0):
+    """
+    Rotate a mesh about an arbitrary axis.
+    
+    Parameters
+    ----------
+    mesh : vtk.vtkPolyData
+        The input mesh to rotate
+    axis : int, optional
+        Axis to rotate around (0=X, 1=Y, 2=Z), by default 1
+    angle : float, optional
+        Angle in degrees, by default 0
+        
+    Returns
+    -------
+    vtk.vtkPolyData
+        The rotated mesh
+    """
     try:
-        print("Rotating surface: axis=", axis, "angle=", angle)
+        print(f"Rotating surface: axis={axis}, angle={angle}")
         matrix = vtk.vtkTransform()
         if axis == 0:
             matrix.RotateX(angle)
@@ -149,7 +193,7 @@ def rotateMesh(mesh, axis=1, angle=0):
         tfilter.Update()
         mesh2 = tfilter.GetOutput()
         return mesh2
-    except BaseException:
+    except Exception:
         print("Surface rotating failed")
         exc_type, exc_value, exc_traceback = sys.exc_info()
         traceback.print_exception(
@@ -157,30 +201,38 @@ def rotateMesh(mesh, axis=1, angle=0):
     return None
 
 
-# @profile
-
-
-def reduceMesh(mymesh, reductionFactor):
-    """Reduce the number of triangles in a mesh using VTK's vtkDecimatePro
-    filter."""
+def reduce_mesh(mesh, reduction_factor):
+    """
+    Reduce the number of triangles in a mesh using VTK's DecimatePro filter.
+    
+    Parameters
+    ----------
+    mesh : vtk.vtkPolyData
+        The input mesh to reduce
+    reduction_factor : float
+        Reduction factor (0.0 to 1.0)
+        
+    Returns
+    -------
+    vtk.vtkPolyData
+        The reduced mesh
+    """
     try:
         t = time.perf_counter()
-        # deci = vtk.vtkQuadricDecimation()
         deci = vtk.vtkDecimatePro()
-        deci.SetTargetReduction(reductionFactor)
+        deci.SetTargetReduction(reduction_factor)
         if vtk.vtkVersion.GetVTKMajorVersion() >= 6:
-            deci.SetInputData(mymesh)
+            deci.SetInputData(mesh)
         else:
-            deci.SetInput(mymesh)
+            deci.SetInput(mesh)
         deci.Update()
         print("Surface reduced")
         m2 = deci.GetOutput()
         del deci
-#        deci = None
         print("    ", m2.GetNumberOfPolys(), "polygons")
-        elapsedTime(t)
+        elapsed_time(t)
         return m2
-    except BaseException:
+    except Exception:
         print("Surface reduction failed")
         exc_type, exc_value, exc_traceback = sys.exc_info()
         traceback.print_exception(
@@ -188,14 +240,22 @@ def reduceMesh(mymesh, reductionFactor):
     return None
 
 
-# from https://github.com/AOT-AG/DicomToMesh/blob/master/lib/src/meshRoutines.cpp#L109
-# MIT License
-def removeSmallObjects(mesh, ratio):
+def remove_small_objects(mesh, ratio):
     """
-    Remove small parts which are not of interest
-    @param ratio A floating-point value between 0.0 and 1.0, the higher the stronger effect
+    Remove small parts which are not of interest.
+    
+    Parameters
+    ----------
+    mesh : vtk.vtkPolyData
+        The input mesh
+    ratio : float
+        A floating-point value between 0.0 and 1.0, the higher the stronger effect
+        
+    Returns
+    -------
+    vtk.vtkPolyData
+        The cleaned mesh
     """
-
     # do nothing if ratio is 0
     if ratio == 0:
         return mesh
@@ -226,35 +286,55 @@ def removeSmallObjects(mesh, ratio):
         processed_mesh = conn_filter.GetOutput()
         print("Small parts cleaned")
         print("    ", processed_mesh.GetNumberOfPolys(), "polygons")
-        elapsedTime(t)
+        elapsed_time(t)
         return processed_mesh
 
-    except BaseException:
+    except Exception:
         print("Remove small objects failed")
         exc_type, exc_value, exc_traceback = sys.exc_info()
         traceback.print_exception(
             exc_type, exc_value, exc_traceback, limit=2, file=sys.stdout)
+        return mesh
 
 
-#
-#   Mesh I/O
-#
-
-
-def readMesh(name):
-    """Read a mesh. Uses suffix to determine specific file type reader."""
+def read_mesh(name):
+    """
+    Read a mesh. Uses suffix to determine specific file type reader.
+    
+    Parameters
+    ----------
+    name : str
+        Filename to read
+        
+    Returns
+    -------
+    vtk.vtkPolyData
+        The loaded mesh
+    """
     if name.endswith(".vtk"):
-        return readVTKMesh(name)
+        return read_vtk_mesh(name)
     if name.endswith(".ply"):
-        return readPLY(name)
+        return read_ply(name)
     if name.endswith(".stl"):
-        return readSTL(name)
+        return read_stl(name)
     print("Unknown file type: ", name)
     return None
 
 
-def readVTKMesh(name):
-    """Read a VTK mesh file."""
+def read_vtk_mesh(name):
+    """
+    Read a VTK mesh file.
+    
+    Parameters
+    ----------
+    name : str
+        Filename to read
+        
+    Returns
+    -------
+    vtk.vtkPolyData
+        The loaded mesh
+    """
     try:
         reader = vtk.vtkPolyDataReader()
         reader.SetFileName(name)
@@ -262,9 +342,8 @@ def readVTKMesh(name):
         print("Input mesh:", name)
         mesh = reader.GetOutput()
         del reader
-#        reader = None
         return mesh
-    except BaseException:
+    except Exception:
         print("VTK mesh reader failed")
         exc_type, exc_value, exc_traceback = sys.exc_info()
         traceback.print_exception(
@@ -272,8 +351,20 @@ def readVTKMesh(name):
     return None
 
 
-def readSTL(name):
-    """Read an STL mesh file."""
+def read_stl(name):
+    """
+    Read an STL mesh file.
+    
+    Parameters
+    ----------
+    name : str
+        Filename to read
+        
+    Returns
+    -------
+    vtk.vtkPolyData
+        The loaded mesh
+    """
     try:
         reader = vtk.vtkSTLReader()
         reader.SetFileName(name)
@@ -281,9 +372,8 @@ def readSTL(name):
         print("Input mesh:", name)
         mesh = reader.GetOutput()
         del reader
-#        reader = None
         return mesh
-    except BaseException:
+    except Exception:
         print("STL Mesh reader failed")
         exc_type, exc_value, exc_traceback = sys.exc_info()
         traceback.print_exception(
@@ -291,8 +381,20 @@ def readSTL(name):
     return None
 
 
-def readPLY(name):
-    """Read a PLY mesh file."""
+def read_ply(name):
+    """
+    Read a PLY mesh file.
+    
+    Parameters
+    ----------
+    name : str
+        Filename to read
+        
+    Returns
+    -------
+    vtk.vtkPolyData
+        The loaded mesh
+    """
     try:
         reader = vtk.vtkPLYReader()
         reader.SetFileName(name)
@@ -300,9 +402,8 @@ def readPLY(name):
         print("Input mesh:", name)
         mesh = reader.GetOutput()
         del reader
-#        reader = None
         return mesh
-    except BaseException:
+    except Exception:
         print("PLY Mesh reader failed")
         exc_type, exc_value, exc_traceback = sys.exc_info()
         traceback.print_exception(
@@ -310,23 +411,41 @@ def readPLY(name):
     return None
 
 
-def writeMesh(mesh, name):
-    """Write a mesh. Uses suffix to determine specific file type writer."""
+def write_mesh(mesh, name):
+    """
+    Write a mesh. Uses suffix to determine specific file type writer.
+    
+    Parameters
+    ----------
+    mesh : vtk.vtkPolyData
+        The mesh to write
+    name : str
+        Filename to write
+    """
     print("Writing", mesh.GetNumberOfPolys(), "polygons to", name)
     if name.endswith(".vtk"):
-        writeVTKMesh(mesh, name)
+        write_vtk_mesh(mesh, name)
         return
     if name.endswith(".ply"):
-        writePLY(mesh, name)
+        write_ply(mesh, name)
         return
     if name.endswith(".stl"):
-        writeSTL(mesh, name)
+        write_stl(mesh, name)
         return
     print("Unknown file type: ", name)
 
 
-def writeVTKMesh(mesh, name):
-    """Write a VTK mesh file."""
+def write_vtk_mesh(mesh, name):
+    """
+    Write a VTK mesh file.
+    
+    Parameters
+    ----------
+    mesh : vtk.vtkPolyData
+        The mesh to write
+    name : str
+        Filename to write
+    """
     try:
         writer = vtk.vtkPolyDataWriter()
         if vtk.vtkVersion.GetVTKMajorVersion() >= 6:
@@ -338,39 +457,53 @@ def writeVTKMesh(mesh, name):
         writer.Write()
         print("Output mesh:", name)
         writer = None
-    except BaseException:
+    except Exception:
         print("VTK mesh writer failed")
         exc_type, exc_value, exc_traceback = sys.exc_info()
         traceback.print_exception(
             exc_type, exc_value, exc_traceback, limit=2, file=sys.stdout)
-    return None
 
 
-def writeSTL(mesh, name):
-    """Write an STL mesh file."""
+def write_stl(mesh, name):
+    """
+    Write an STL mesh file.
+    
+    Parameters
+    ----------
+    mesh : vtk.vtkPolyData
+        The mesh to write
+    name : str
+        Filename to write
+    """
     try:
         writer = vtk.vtkSTLWriter()
         if vtk.vtkVersion.GetVTKMajorVersion() >= 6:
-            print("writeSTL 1")
             writer.SetInputData(mesh)
         else:
-            print("writeSTL 2")
             writer.SetInput(mesh)
         writer.SetFileTypeToBinary()
         writer.SetFileName(name)
         writer.Write()
         print("Output mesh:", name)
         writer = None
-    except BaseException:
+    except Exception:
         print("STL mesh writer failed")
         exc_type, exc_value, exc_traceback = sys.exc_info()
         traceback.print_exception(
             exc_type, exc_value, exc_traceback, limit=2, file=sys.stdout)
-    return None
 
 
-def writePLY(mesh, name):
-    """Read a PLY mesh file."""
+def write_ply(mesh, name):
+    """
+    Write a PLY mesh file.
+    
+    Parameters
+    ----------
+    mesh : vtk.vtkPolyData
+        The mesh to write
+    name : str
+        Filename to write
+    """
     try:
         writer = vtk.vtkPLYWriter()
         if vtk.vtkVersion.GetVTKMajorVersion() >= 6:
@@ -382,21 +515,27 @@ def writePLY(mesh, name):
         writer.Write()
         print("Output mesh:", name)
         writer = None
-    except BaseException:
+    except Exception:
         print("PLY mesh writer failed")
         exc_type, exc_value, exc_traceback = sys.exc_info()
         traceback.print_exception(
             exc_type, exc_value, exc_traceback, limit=2, file=sys.stdout)
-    return None
 
 
-#
-#  Volume I/O
-#
-
-
-def readVTKVolume(name):
-    """Read a VTK volume image file. Returns a vtkStructuredPoints object."""
+def read_vtk_volume(name):
+    """
+    Read a VTK volume image file.
+    
+    Parameters
+    ----------
+    name : str
+        Filename to read
+        
+    Returns
+    -------
+    vtk.vtkStructuredPoints
+        The volume data
+    """
     try:
         reader = vtk.vtkStructuredPointsReader()
         reader.SetFileName(name)
@@ -405,15 +544,24 @@ def readVTKVolume(name):
         vol = reader.GetOutput()
         reader = None
         return vol
-    except BaseException:
+    except Exception:
         print("VTK volume reader failed")
         exc_type, exc_value, exc_traceback = sys.exc_info()
         traceback.print_exception(
             exc_type, exc_value, exc_traceback, limit=2, file=sys.stdout)
     return None
 
-def writeVTKVolume(vtkimg, name):
-    """ Write the old VTK Image file format
+
+def write_vtk_volume(vtkimg, name):
+    """
+    Write the old VTK Image file format.
+    
+    Parameters
+    ----------
+    vtkimg : vtk.vtkImageData
+        The volume to write
+    name : str
+        Filename to write
     """
     try:
         writer = vtk.vtkStructuredPointsWriter()
@@ -421,14 +569,27 @@ def writeVTKVolume(vtkimg, name):
         writer.SetInputData(vtkimg)
         writer.SetFileTypeToBinary()
         writer.Update()
-    except BaseException:
+    except Exception:
         print("VTK volume writer failed")
         exc_type, exc_value, exc_traceback = sys.exc_info()
         traceback.print_exception(
             exc_type, exc_value, exc_traceback, limit=2, file=sys.stdout)
 
-def readVTIVolume(name):
-    """Read a VTK XML volume image file. Returns a vtkStructuredPoints object."""
+
+def read_vti_volume(name):
+    """
+    Read a VTK XML volume image file.
+    
+    Parameters
+    ----------
+    name : str
+        Filename to read
+        
+    Returns
+    -------
+    vtk.vtkStructuredPoints
+        The volume data
+    """
     try:
         reader = vtk.vtkXMLImageDataReader()
         reader.SetFileName(name)
@@ -437,65 +598,75 @@ def readVTIVolume(name):
         vol = reader.GetOutput()
         reader = None
         return vol
-    except BaseException:
+    except Exception:
         print("VTK XML volume reader failed")
         exc_type, exc_value, exc_traceback = sys.exc_info()
         traceback.print_exception(
             exc_type, exc_value, exc_traceback, limit=2, file=sys.stdout)
     return None
 
-def writeVTIVolume(vtkimg, name):
-    """ Write the new XML VTK Image file format
+
+def write_vti_volume(vtkimg, name):
+    """
+    Write the new XML VTK Image file format.
+    
+    Parameters
+    ----------
+    vtkimg : vtk.vtkImageData
+        The volume to write
+    name : str
+        Filename to write
     """
     try:
         writer = vtk.vtkXMLImageDataWriter()
         writer.SetFileName(name)
         writer.SetInputData(vtkimg)
         writer.Update()
-    except BaseException:
+    except Exception:
         print("VTK volume writer failed")
         exc_type, exc_value, exc_traceback = sys.exc_info()
         traceback.print_exception(
             exc_type, exc_value, exc_traceback, limit=2, file=sys.stdout)
 
 
-# @profile
+# Keep the old function names for compatibility
+# These will be imported by the compatibility layer
+extractSurface = extract_surface
+cleanMesh = clean_mesh
+smoothMesh = smooth_mesh
+rotateMesh = rotate_mesh
+reduceMesh = reduce_mesh
+removeSmallObjects = remove_small_objects
+readMesh = read_mesh
+readVTKMesh = read_vtk_mesh
+readSTL = read_stl
+readPLY = read_ply
+writeMesh = write_mesh
+writeVTKMesh = write_vtk_mesh
+writeSTL = write_stl
+writePLY = write_ply
+readVTKVolume = read_vtk_volume
+writeVTKVolume = write_vtk_volume
+readVTIVolume = read_vti_volume
+writeVTIVolume = write_vti_volume
+roundThousand = round_thousand
+elapsedTime = elapsed_time
 
 
-def memquery1():
-    print("Hiya 1")
-
-
-# @profile
-
-
-def memquery2():
-    print("Hiya 2")
-
-
-# @profile
-
-
-def memquery3():
-    print("Hiya 3")
-
-
-#
-#  Main (test code)
-#
 if __name__ == "__main__":
-    print("vtkutils.py")
-
+    print("vtk_utils.py")
     print("VTK version:", vtk.vtkVersion.GetVTKVersion())
     print("VTK:", vtk)
 
     try:
-        mesh = readMesh(sys.argv[1])
-        #       mesh = readMesh("models/soft.stl")
-        #       mesh = cleanMesh(mesh, False)
-        #       mesh = smoothMesh(mesh)
-        mesh2 = reduceMesh(mesh, .50)
-        #        writeMesh(mesh2, "soft.ply")
-        writeMesh(mesh2, sys.argv[2])
-    except BaseException:
-        print("Usage: vtkutils.py input_mesh output_mesh")
+        if len(sys.argv) >= 3:
+            mesh = read_mesh(sys.argv[1])
+            mesh2 = reduce_mesh(mesh, .50)
+            write_mesh(mesh2, sys.argv[2])
+        else:
+            print("Usage: vtk_utils.py input_mesh output_mesh")
+    except Exception:
+        print("Error processing mesh")
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        traceback.print_exception(
+            exc_type, exc_value, exc_traceback, limit=2, file=sys.stdout)

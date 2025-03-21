@@ -19,7 +19,7 @@ from amihgosapp.utils.resource_utils import get_image_path, get_template_path
 
 # Import from old locations for modules not yet migrated
 from utils.mesh_manipulationv2 import MeshManipulationWindow 
-from utils.ROIDataAquisition import ROIDataAquisition
+from amihgosapp.core.roi_acquisition import ROIDataAcquisition
 
 class HomeWindow:
     """
@@ -242,7 +242,7 @@ class HomeWindow:
     def start_roi_selection(self):
         """Start the ROI selection workflow"""
         self.intro_frame.pack_forget()
-        ROIDataAquisition(
+        ROIDataAcquisition(
             self.moving_image, 
             self.ROI_frame, 
             self.root, 
