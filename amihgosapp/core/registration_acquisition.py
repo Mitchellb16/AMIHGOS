@@ -13,7 +13,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 # Import from new locations when available
 from amihgosapp.utils.resource_utils import get_ct_path
 from amihgosapp.gui.visualize_registration import visualize_registration
-from amihgosapp.core.segment_to_stl import SegmentationScreen
+from amihgosapp.core.segmentation import SegmentationScreen
 
 
 class RegistrationPointDataAcquisition:

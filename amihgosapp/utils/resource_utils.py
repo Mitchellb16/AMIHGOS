@@ -19,14 +19,17 @@ def get_image_path(image_name):
 
 def get_template_path(template_name):
     """Get absolute path to a template resource"""
-    return os.path.join(_PROJECT_ROOT, resources_path, 'templates', template_name)
+    if template_name is not None:
+        return os.path.join(_PROJECT_ROOT, resources_path, 'templates', template_name)
+    
+    else:
+        return os.path.join(_PROJECT_ROOT, resources_path, 'templates')
 
 def get_ct_path(ct_name):
     """Get absolute path to a CT resource"""
     return os.path.join(_PROJECT_ROOT, resources_path, 'ct_files', ct_name)
 
-def get_output_path(filename, subdir='head_stls'):
+def get_output_path(filename):
     """Get absolute path for an output file"""
-    output_dir = os.path.join(_PROJECT_ROOT, subdir)
-    os.makedirs(output_dir, exist_ok=True)
+    output_dir = os.path.join(_PROJECT_ROOT, resources_path, 'head_stls')
     return os.path.join(output_dir, filename)

@@ -9,12 +9,12 @@ from PyQt5 import QtWidgets
 import SimpleITK as sitk
 
 # Import from new locations when available
-from amihgosapp.utils.resource_utils import get_image_path, get_template_path
+from amihgosapp.utils.resource_utils import get_image_path, get_template_path, get_output_path
 
 # Import from old locations for modules not yet migrated
 from amihgosapp.utils import sitk_utils
 from amihgosapp.utils import vtk_utils
-from amihgosapp.gui.mesh_manipulation import MeshManipulationWindow
+from amihgosapp.core.mesh_manipulation import MeshManipulationWindow
 
 
 class SegmentationScreen:
@@ -38,7 +38,7 @@ class SegmentationScreen:
         """
         self.img = img
         self.animal_name = animal_name
-        self.output_dir = f'head_stls/{self.animal_name}.stl'
+        self.output_dir = get_output_path(f'{self.animal_name}.stl')
         self._setup_ui()
         
     def _setup_ui(self):
@@ -62,7 +62,6 @@ class SegmentationScreen:
         
         
         # Schedule segmentation to start after the window opens
-        self.start()
         self.root.after(1000, self.segment_to_stl)
 
     def start(self):
@@ -138,7 +137,7 @@ class SegmentationScreen:
         mesh2 = None
         
         # Smooth the mesh
-        mesh3 = vtk_utils.smoothMesh(mesh_cleaned_parts, nIterations=500)
+        mesh3 = vtk_utils.smoothMesh(mesh_cleaned_parts, n_iterations=500)
         mesh_cleaned_parts = None
         
         # Save the mesh
@@ -158,7 +157,7 @@ class SegmentationScreen:
         
         # Get available helmet templates from templates directory
         import os
-        template_dir = 'templates/'
+        template_dir = get_template_path(None)
         helmet_options = os.listdir(template_dir)
         
         # Default is flat helmet if available, otherwise first option
@@ -184,6 +183,10 @@ class SegmentationScreen:
             command=self.run_mesh_manipulation_window
         )
         self.continue_button.pack(pady=5)
+        
+        # Update and resize
+        self.root.update_idletasks()  # Ensure widgets are drawn first
+        self.root.geometry("")  # Set window size to fit content
     
     def run_mesh_manipulation_window(self):
         """
