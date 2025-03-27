@@ -155,7 +155,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
     before performing a boolean subtraction to create a custom helmet.
     """
     
-    def __init__(self, helmet_mesh_file, head_mesh_file, animal_name='Example', helmet_type=None):
+    def __init__(self, helmet_mesh_file, head_mesh_file, animal_name='Example'):
         """
         Initialize the mesh manipulation window.
         
@@ -167,8 +167,6 @@ class MeshManipulationWindow(QtWidgets.QWidget):
             Path to head mesh STL file
         animal_name : str, optional
             Name to use for labeling the helmet, by default 'Example'
-        helmet_type : str, optional
-            Type of helmet, determines chin piece used, by default None
         """
         super().__init__()
         print(f"Loading meshes: {helmet_mesh_file}, {head_mesh_file}")
@@ -176,7 +174,15 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         # Load helmet and head meshes
         self.helmet_mesh_file = helmet_mesh_file
         self.head_mesh_file = head_mesh_file
-        self.helmet_type = helmet_type
+        self.animal_name = animal_name
+        
+        # check if one of default helmet types
+        if 'Flat' in self.helmet_mesh_file:
+            self.helmet_type = 'Flat'
+        elif 'Winged' in self.helmet_mesh_file:
+            self.helmet_type = 'Winged'
+        else:
+            self.helmet_type = None
         
         # Load and triangulate meshes
         helmet_mesh = pv.read(self.helmet_mesh_file).triangulate(inplace=True)
@@ -185,18 +191,25 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         # Clean the head mesh
         head_mesh.clean(inplace=True)
         
-        # Determine chin piece based on helmet type
-        if 'Flat' in helmet_mesh_file or not self.helmet_type:
-            self.chin_mesh_file = get_template_path('FlatChinPiece.stl')
-        else:
-            self.chin_mesh_file = get_template_path('WingedChinPieceTemplate2025.stl')
-            
-        self.animal_name = animal_name
+        # Determine chin piece based on helmet type and preprocess
+        if self.helmet_type is None:
+            self.og_head_mesh, self.helmet_mesh = self.mesh_preprocess(head_mesh, 
+                                                                       helmet_mesh, 
+                                                                       name=self.animal_name)
+        else: 
+            if self.helmet_type == 'Flat':
+                self.chin_mesh_file = get_template_path('FlatChinPiece.stl')
+                chin_mesh = pv.read(self.chin_mesh_file).triangulate(inplace=True)
+            elif self.helmet_type == 'Winged':
+                self.chin_mesh_file = get_template_path('WingedChinPieceTemplate2025.stl')
+                chin_mesh = pv.read(self.chin_mesh_file).triangulate(inplace=True)
         
-        # Preprocess meshes
-        self.og_head_mesh, self.helmet_mesh = self.mesh_preprocess(head_mesh, helmet_mesh, name=self.animal_name)
-        
-        # Connect signals
+            self.og_head_mesh, self.helmet_mesh, self.chin_mesh = self.mesh_preprocess(head_mesh,
+                                                                                       helmet_mesh,
+                                                                                       chin_mesh, 
+                                                                                       name=self.animal_name)
+                
+        # Connect quit signals
         self.destroyed.connect(QtWidgets.qApp.quit)
         self.destroyed.connect(self.close_plotter)
 
@@ -506,7 +519,8 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         """Show the window and start the event loop."""
         self.show()
 
-    def mesh_preprocess(self, head_mesh, helmet_mesh, name='Example', separate=False, scaling=1.00):
+    def mesh_preprocess(self, head_mesh, helmet_mesh, chin_mesh,
+                        name='Example', separate=False, scaling=1.00):
         """
         Prepare the head and helmet meshes for manipulation.
         
@@ -530,26 +544,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         """
         print(f'Before preprocessing, head mesh is manifold: {head_mesh.is_manifold}')
         
-        # Load and preprocess chin piece mesh
-        self.chin_mesh = pv.read(self.chin_mesh_file).triangulate(inplace=True)
-        
-        # Zero the center of chin mesh
-        self.chin_mesh.points -= self.chin_mesh.center
-        
-        # Position chin piece mesh
-        # Format [LR, PA, DV] or [X, Y, Z]
-        chin_offset = [0, 8, -27.5]
-        self.chin_mesh.translate(chin_offset, inplace=True)
-        
-        # Add text label for chin piece
-        chin_text = pv.Text3D(name, depth=0.9)
-        chin_text.scale([2.5, 2.5, 2.5], inplace=True)
-        chin_text.rotate_z(-90, inplace=True)
-        chin_text.rotate_x(180, inplace=True)
-        chin_text_offset = [28, 5, -19.5]
-        chin_text.translate(chin_text_offset, inplace=True)
-        self.chin_mesh = self.chin_mesh + chin_text
-        
+               
         # Scale up and rotate head mesh
         head_mesh.scale([scaling, scaling, scaling], inplace=True)
         head_mesh.rotate_x(270, inplace=True)
@@ -575,19 +570,48 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         head_mesh.translate(offset, inplace=True)
         print(f'After translating, head mesh is manifold: {head_mesh.is_manifold}')
         
+        if self.helmet_type == None:
+            return head_mesh, helmet_mesh
+        
         # Create text object for embossing
         text = pv.Text3D(name, depth=0.9)
         text.scale([2.5, 2.5, 2.5], inplace=True)
         text.rotate_z(90, inplace=True)
         
         # Position text based on helmet type
-        if 'Wing' in self.helmet_mesh_file or self.helmet_type == 'PET':
-            text_offset = [27, 5, -11.8]
-        else:
+        if self.helmet_type == 'Flat':
             text_offset = [31, 5, -14.5]
+        elif self.helmet_type == 'Winged':
+            text_offset = [27, 5, -11.8]
         text.points += text_offset
         
         # Add text to helmet to emboss
         helmet_mesh = helmet_mesh + text
+            
+        # Zero the center of chin mesh
+        chin_mesh.points -= chin_mesh.center
+        
+        # Position chin piece mesh
+        # Format [LR, PA, DV] or [X, Y, Z]
+        chin_offset = [0, 8, -27.5]
+        chin_mesh.translate(chin_offset, inplace=True)
+        
+        # Add text label for chin piece
+        chin_text = pv.Text3D(name, depth=0.9)
+        chin_text.scale([2.5, 2.5, 2.5], inplace=True)
+        
+        # Position text based on helmet type
+        if self.helmet_type == 'Flat':
+            chin_text_offset = [28, 5, -22.5]
+            chin_text.rotate_z(-90, inplace=True)
+            chin_text.rotate_x(180, inplace=True)
+            
+        elif self.helmet_type == 'Winged':
+            chin_text_offset = [28, 5, -19.5]
+            chin_text.rotate_z(-90, inplace=True)
+            chin_text.rotate_x(180, inplace=True)
+            
+        chin_text.translate(chin_text_offset, inplace=True)
+        chin_mesh = chin_mesh + chin_text
     
-        return head_mesh, helmet_mesh
+        return head_mesh, helmet_mesh, chin_mesh

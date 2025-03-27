@@ -18,7 +18,7 @@ from amihgosapp.utils.ImageLabel import ImageLabel
 from amihgosapp.utils.resource_utils import get_image_path, get_template_path
 
 # Import from old locations for modules not yet migrated
-from utils.mesh_manipulationv2 import MeshManipulationWindow 
+from amihgosapp.core.mesh_manipulation import MeshManipulationWindow 
 from amihgosapp.core.roi_acquisition import ROIDataAcquisition
 
 class HomeWindow:
@@ -125,12 +125,11 @@ class HomeWindow:
     def setup_helmet_selection(self):
         """Set up helmet template selection dropdown"""
         # Get available helmet templates
-        template_dir = 'templates/'  # Consider moving to resource_utils
-        helmet_options = os.listdir(template_dir)
+        helmet_options = os.listdir(get_template_path(None))
         
         # Create selection dropdown
         self.helmet_selection = StringVar()
-        self.helmet_selection.set('Flat_helmet.STL')
+        self.helmet_selection.set('Flat_helmet.stl')
         
         self.dropdown = OptionMenu(
             self.intro_frame, 

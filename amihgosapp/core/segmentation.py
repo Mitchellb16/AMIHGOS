@@ -160,7 +160,7 @@ class SegmentationScreen:
         template_dir = get_template_path(None)
         helmet_options = os.listdir(template_dir)
         
-        # Default is flat helmet if available, otherwise first option
+        # Dropdown default is flat helmet if available, otherwise first option
         self.helmet_selection = tk.StringVar()
         default_helmet = 'Flat_helmet.STL'
         if default_helmet in helmet_options:
