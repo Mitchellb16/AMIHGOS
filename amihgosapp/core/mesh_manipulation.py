@@ -344,7 +344,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
     def create_pvplotter(self):
         """Create and initialize the PyVista plotter."""
         self.plotter = BackgroundPlotter(off_screen=False, notebook=False)
-        self.plotter.add_mesh(self.helmet_mesh)
+        self.plotter.add_mesh(self.helmet_mesh, opacity = .8)
         self.plotter.add_mesh(self.chin_mesh)
         self.head_actor = self.plotter.add_mesh(self.head_mesh, color='magenta')
         self.plotter.show_bounds(grid='front', location='outer', all_edges=True)
