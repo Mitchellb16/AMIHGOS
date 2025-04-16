@@ -220,7 +220,6 @@ class SegmentationScreen:
                 helmet_mesh_file, 
                 head_mesh_file, 
                 self.animal_name,
-                helmet_type='PET'
             )
         else:
             window = MeshManipulationWindow(

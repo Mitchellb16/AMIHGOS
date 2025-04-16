@@ -7,7 +7,7 @@ Written by Mitchell Bishop and optimized with Claude AI
 from datetime import date
 import os
 import pyvista as pv
-import pymeshfix
+#import pymeshfix
 from pyvistaqt import BackgroundPlotter
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import Qt
@@ -392,11 +392,13 @@ class MeshManipulationWindow(QtWidgets.QWidget):
             print("Warning, non-manifold head segmentation, attempting repair. "
                   "May cause crashing during subtraction")
             
-            # Try to fix the mesh
-            meshfix = pymeshfix.MeshFix(self.head_mesh)
-            meshfix.repair()
-            self.head_mesh = meshfix.mesh              
-        
+            # Try to fix the mesh - install issues with pymeshfix
+# =============================================================================
+#             meshfix = pymeshfix.MeshFix(self.head_mesh)
+#             meshfix.repair()
+#             self.head_mesh = meshfix.mesh              
+#         
+# =============================================================================
         # Save the smoothed head mesh
         head_mesh_filename = f'head_stls/{self.animal_name}_smoothed.stl'
         self.head_mesh.save(head_mesh_filename)
