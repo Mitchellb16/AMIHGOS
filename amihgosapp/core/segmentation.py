@@ -162,7 +162,7 @@ class SegmentationScreen:
         
         # Dropdown default is flat helmet if available, otherwise first option
         self.helmet_selection = tk.StringVar()
-        default_helmet = 'Flat_helmet.STL'
+        default_helmet = 'FlatHelmet.stl'
         if default_helmet in helmet_options:
             self.helmet_selection.set(default_helmet)
         elif helmet_options:

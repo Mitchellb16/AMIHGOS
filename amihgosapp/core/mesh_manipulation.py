@@ -559,9 +559,10 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         head_mesh.points -= head_mesh.center
         print(f'After centering, head mesh is manifold: {head_mesh.is_manifold}')
         
+        # initial transform of head_mesh
         # Format [LR, PA, DV] or [X, Y, Z]
-        LR_offset = 0.7
-        PA_offset = -9
+        LR_offset = 0.0
+        PA_offset = -3.5
         DV_offset = -3.5
         
         offset = [
@@ -597,7 +598,10 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         
         # Position chin piece mesh
         # Format [LR, PA, DV] or [X, Y, Z]
-        chin_offset = [0, 8, -23.5]
+        if self.helmet_type == 'Flat':
+            chin_offset = [0, 6, -25.5]
+        if self.helmet_type == 'Winged':
+            chin_offset = [0,6,-22.3]
         chin_mesh.translate(chin_offset, inplace=True)
         
         # Add text label for chin piece
@@ -606,12 +610,12 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         
         # Position text based on helmet type
         if self.helmet_type == 'Flat':
-            chin_text_offset = [28, 5, -22.5]
+            chin_text_offset = [28, 5, -19.8]
             chin_text.rotate_z(-90, inplace=True)
             chin_text.rotate_x(180, inplace=True)
             
         elif self.helmet_type == 'Winged':
-            chin_text_offset = [27, 5, -17]
+            chin_text_offset = [27, 5, -16]
             chin_text.rotate_z(-90, inplace=True)
             chin_text.rotate_x(180, inplace=True)
             
