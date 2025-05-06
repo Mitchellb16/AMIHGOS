@@ -201,7 +201,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
                 self.chin_mesh_file = get_template_path('FlatChinPiece.stl')
                 chin_mesh = pv.read(self.chin_mesh_file).triangulate(inplace=True)
             elif self.helmet_type == 'Winged':
-                self.chin_mesh_file = get_template_path('WingedChinPieceTemplate2025.stl')
+                self.chin_mesh_file = get_template_path('WingedChinPiece.stl')
                 chin_mesh = pv.read(self.chin_mesh_file).triangulate(inplace=True)
         
             self.og_head_mesh, self.helmet_mesh, self.chin_mesh = self.mesh_preprocess(head_mesh,
@@ -410,7 +410,9 @@ class MeshManipulationWindow(QtWidgets.QWidget):
             self.chin_bool_mesh = self.chin_mesh.boolean_difference(self.head_mesh)
             
             # Get rid of small residues from chin topology
-            self.chin_bool_mesh.extract_largest(inplace=True)
+# =============================================================================
+#             self.chin_bool_mesh.extract_largest(inplace=True)
+# =============================================================================
         
         # Perform the main boolean subtraction    
         bool_mesh = self.helmet_mesh.boolean_difference(self.head_mesh)
