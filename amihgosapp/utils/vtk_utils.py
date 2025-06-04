@@ -15,6 +15,8 @@ import sys
 import time
 import traceback
 import vtk
+import pyvista as pv
+import numpy as np
 
 
 def round_thousand(x):
@@ -27,6 +29,188 @@ def elapsed_time(start_time):
     """Print the elapsed time since start_time in seconds."""
     dt = round_thousand(time.perf_counter() - start_time)
     print("    ", dt, "seconds")
+    
+# Helper function for watertightness check
+def _is_mesh_watertight(mesh: pv.PolyData) -> bool:
+    """Checks if a PyVista mesh is watertight (i.e., has no boundary edges)."""
+    boundary_edges = mesh.extract_feature_edges(feature_edges=False, non_manifold_edges=False, boundary_edges=True)
+    return boundary_edges.n_points == 0
+
+# Helper function for robust boolean difference
+def _perform_robust_boolean_difference(mesh_a: pv.PolyData, mesh_b: pv.PolyData, operation_name: str = "subtraction", debug_plot: bool = False) -> pv.PolyData | None:
+    """
+    Performs a robust boolean difference (mesh_a - mesh_b) with pre-processing.
+
+    Args:
+        mesh_a (pv.PolyData): The mesh to subtract from.
+        mesh_b (pv.PolyData): The mesh to subtract.
+        operation_name (str): A descriptive name for the current operation (e.g., "chin subtraction").
+        debug_plot (bool): If True, plots intermediate meshes and their feature edges for debugging.
+
+    Returns:
+        pv.PolyData | None: The resulting mesh after subtraction, or None if the operation failed.
+    """
+    print(f"\n--- Starting Robust Boolean Operation: {operation_name} ---")
+
+    DEFAULT_HOLE_SIZE = 10.0 # Adjust as needed
+
+    print(f"Pre-processing Mesh A (Subtract from): {mesh_a.n_points} points, {mesh_a.n_faces} faces")
+    mesh_a_cleaned = mesh_a.clean(inplace=False)
+    mesh_a_cleaned.fill_holes(DEFAULT_HOLE_SIZE, inplace=True)
+    mesh_a_cleaned.compute_normals(inplace=True)
+    mesh_a_cleaned.extract_largest(inplace=True)
+    mesh_a_cleaned.clean(inplace=True)
+
+    print(f"Pre-processing Mesh B (Subtracting): {mesh_b.n_points} points, {mesh_b.n_faces} faces")
+    mesh_b_cleaned = mesh_b.clean(inplace=False)
+    mesh_b_cleaned.fill_holes(DEFAULT_HOLE_SIZE, inplace=True)
+    mesh_b_cleaned.compute_normals(inplace=True)
+    mesh_b_cleaned.extract_largest(inplace=True)
+    mesh_b_cleaned.clean(inplace=True)
+
+
+    is_a_watertight = _is_mesh_watertight(mesh_a_cleaned)
+    is_b_watertight = _is_mesh_watertight(mesh_b_cleaned)
+
+    print(f"Mesh A (cleaned) manifold: {mesh_a_cleaned.is_manifold}, watertight: {is_a_watertight}")
+    print(f"Mesh B (cleaned) manifold: {mesh_b_cleaned.is_manifold}, watertight: {is_b_watertight}")
+
+    if not is_a_watertight or not is_b_watertight:
+        print(f"Warning: One or both meshes for {operation_name} are not watertight. This increases risk of failure.")
+        if debug_plot:
+            plotter = pv.Plotter(shape=(1,2))
+            plotter.subplot(0,0)
+            plotter.add_text("Mesh A Boundary Edges", font_size=10)
+            plotter.add_mesh(mesh_a_cleaned, color='red', opacity=0.5, show_edges=True)
+            plotter.add_mesh(mesh_a_cleaned.extract_feature_edges(boundary_edges=True), color='black', line_width=5)
+            plotter.subplot(0,1)
+            plotter.add_text("Mesh B Boundary Edges", font_size=10)
+            plotter.add_mesh(mesh_b_cleaned, color='blue', opacity=0.5, show_edges=True)
+            plotter.add_mesh(mesh_b_cleaned.extract_feature_edges(boundary_edges=True), color='black', line_width=5)
+            plotter.link_views()
+            plotter.show()
+
+
+    try:
+        print(f"Attempting {operation_name}...")
+        result_mesh = mesh_a_cleaned.boolean_difference(mesh_b_cleaned)
+
+        if result_mesh.n_points == 0:
+            print(f"{operation_name} resulted in an empty mesh. This often indicates issues with inputs or intersections.")
+            return None
+
+        result_mesh.clean(inplace=True)
+        result_mesh.fill_holes(DEFAULT_HOLE_SIZE, inplace=True)
+        result_mesh.compute_normals(inplace=True)
+        result_mesh.extract_largest(inplace=True)
+        result_mesh.clean(inplace=True)
+
+        print(f"{operation_name} successful. Result has {result_mesh.n_points} points, {result_mesh.n_faces} faces.")
+        return result_mesh
+
+    except Exception as e:
+        print(f"An error occurred during {operation_name}: {e}")
+        print("Common causes: non-manifold meshes, self-intersections (especially from offsetting), or numerical issues.")
+        print("Consider reducing offset_distance, or further tuning the healing in offset_mesh.")
+        return None
+
+def offset_mesh(input_mesh: pv.PolyData, offset_distance: float, healing_resolution: float | None = None) -> pv.PolyData:
+    """
+    Applies a uniform offset to a PyVista mesh along its surface normals.
+    This expands (positive offset) or contracts (negative offset) the mesh.
+    Optionally, it can "heal" self-intersections by voxelizing and re-extracting the surface.
+
+    Args:
+        input_mesh (pv.PolyData): The input PyVista mesh object.
+        offset_distance (float): The distance to offset along the normal.
+                                 Positive for outward, negative for inward.
+        healing_resolution (float | None): If a float is provided, the offset mesh
+                                           will be voxelized. This value acts as a
+                                           factor for voxel size relative to the mesh's
+                                           bounding box length.
+                                           - A **lower value** (e.g., 50) results in a
+                                             **coarser voxel grid**, providing **more aggressive healing**
+                                             and smoothing, but less detail.
+                                           - A **higher value** (e.g., 200) results in a
+                                             **finer voxel grid**, preserving **more detail**
+                                             but being less aggressive at healing severe issues.
+                                           Common values range from 50 (very coarse) to 200 (quite fine).
+
+    Returns:
+        pv.PolyData: A new PyVista mesh object with the offset applied and optionally healed.
+    """
+    if not isinstance(input_mesh, pv.PolyData):
+        try:
+            input_mesh = input_mesh.extract_surface()
+        except Exception as e:
+            raise TypeError(f"Input must be a PyVista PolyData mesh or convertible to one. Error: {e}")
+
+    try:
+        mesh_with_normals = input_mesh.compute_normals(inplace=False, cell_normals=False, point_normals=True)
+    except Exception as e:
+        print(f"Warning: Could not compute normals for offset. Error: {e}")
+        raise RuntimeError("Failed to compute mesh normals required for offsetting.") from e
+
+    points = mesh_with_normals.points
+    normals = mesh_with_normals.point_normals
+
+    if normals is None or normals.shape[0] == 0:
+        raise ValueError("Normals could not be computed for the input mesh, cannot offset.")
+
+    offset_points = points + offset_distance * normals
+
+    offset_mesh_result = pv.PolyData(offset_points, mesh_with_normals.faces)
+
+    if healing_resolution is not None:
+        print(f"Attempting to heal offset mesh using voxelization with resolution factor: {healing_resolution}")
+        try:
+            # First, clean the potentially self-intersecting offset mesh
+            offset_mesh_result.clean(inplace=True)
+            offset_mesh_result.fill_holes(10.0, inplace=True) # A default hole fill before voxelization
+
+            # Calculate voxel density. A smaller healing_resolution factor means a coarser grid.
+            # Example: mesh.length / 50 -> larger voxels; mesh.length / 200 -> smaller voxels.
+            if offset_mesh_result.length == 0:
+                print("Warning: Offset mesh has zero length, cannot compute voxel density. Skipping healing.")
+                return offset_mesh_result
+            
+            voxel_density = offset_mesh_result.length / healing_resolution
+            
+            if voxel_density <= 0:
+                print(f"Warning: Calculated voxel density is non-positive ({voxel_density}). Using fallback density.")
+                voxel_density = offset_mesh_result.length / 100.0 # Fallback to a default reasonable density
+
+            print(f"Voxel density set to: {voxel_density}")
+            
+            # Voxelize the (potentially self-intersecting) offset surface
+            # 'enclosed=False' is important here, we're not trying to determine if points are *inside*
+            # an already closed volume, but rather create a volume from a surface.
+            voxelized_mesh = pv.voxelize(offset_mesh_result, density=voxel_density, check_surface=False)
+            
+            # Extract the outer surface (level set 0) from the voxel data
+            # This creates a manifold, closed surface from the volume.
+            healed_mesh = voxelized_mesh.extract_surface()
+            
+            if healed_mesh.n_points == 0:
+                print("Voxelization healing resulted in an empty mesh. Returning original offset mesh (potentially problematic).")
+                return offset_mesh_result
+
+            # Final cleaning and normal computation for the healed surface
+            healed_mesh.clean(inplace=True)
+            healed_mesh.fill_holes(10.0, inplace=True) # Fill any new holes created by voxelization
+            healed_mesh.compute_normals(inplace=True)
+            healed_mesh.extract_largest(inplace=True) # Ensure it's one connected component
+            healed_mesh.clean(inplace=True)
+
+            print(f"Offset mesh healed successfully. New mesh has {healed_mesh.n_points} points, {healed_mesh.n_cells} faces.")
+            return healed_mesh
+
+        except Exception as e:
+            print(f"Failed to heal offset mesh using voxelization: {e}")
+            print("Returning original offset mesh (potentially problematic).")
+            return offset_mesh_result
+
+    return offset_mesh_result
 
 
 def extract_surface(vol, isovalue=0.0):

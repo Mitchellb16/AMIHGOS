@@ -7,22 +7,23 @@ Written by Mitchell Bishop and optimized with Claude AI
 from datetime import date
 import os
 import pyvista as pv
-#import pymeshfix
+#import pymeshfix # Keep this commented out until you decide to use it
 from pyvistaqt import BackgroundPlotter
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import Qt
 
 # Import from new locations when available
 from amihgosapp.utils.resource_utils import get_template_path
+from amihgosapp.utils.vtk_utils import offset_mesh, _perform_robust_boolean_difference, _is_mesh_watertight
 
 
 class ManipulationButton:
     """Base class for manipulation buttons (rotation, translation)."""
-    
+
     def __init__(self, label, window, layout):
         """
         Initialize a manipulation button group.
-        
+
         Parameters
         ----------
         label : str
@@ -84,11 +85,11 @@ class ManipulationButton:
 
 class TranslationButton(ManipulationButton):
     """Button for translating the mesh along an axis."""
-    
+
     def __init__(self, axis, window, layout):
         """
         Initialize a translation button.
-        
+
         Parameters
         ----------
         axis : str
@@ -115,11 +116,11 @@ class TranslationButton(ManipulationButton):
 
 class RotationButton(ManipulationButton):
     """Button for rotating the mesh around an axis."""
-    
+
     def __init__(self, axis, window, layout, step_size=2):
         """
         Initialize a rotation button.
-        
+
         Parameters
         ----------
         axis : str
@@ -150,15 +151,15 @@ class RotationButton(ManipulationButton):
 class MeshManipulationWindow(QtWidgets.QWidget):
     """
     GUI window for manipulating and subtracting head meshes from helmet templates.
-    
+
     This window allows interactive adjustment of mesh position, orientation, and scale
     before performing a boolean subtraction to create a custom helmet.
     """
-    
+
     def __init__(self, helmet_mesh_file, head_mesh_file, animal_name='Example'):
         """
         Initialize the mesh manipulation window.
-        
+
         Parameters
         ----------
         helmet_mesh_file : str
@@ -170,12 +171,35 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         """
         super().__init__()
         print(f"Loading meshes: {helmet_mesh_file}, {head_mesh_file}")
-        
+
+        # --- Configurable Parameters for Mesh Processing ---
+        # General cleaning tolerance for merging close points
+        self.GLOBAL_CLEAN_TOLERANCE = 0.01
+        # Default hole size for filling general small holes (used in initial cleaning, chin, helmet)
+        # This will be used in _perform_robust_boolean_difference too if its DEFAULT_HOLE_SIZE is linked to this.
+        self.DEFAULT_FILL_HOLE_SIZE = 10.0
+
+        # Parameters specific to head mesh decimation and post-decimation healing
+        self.HEAD_MESH_DECIMATION_THRESHOLD_FACES = 10000 # Only decimate if more than this many faces
+        self.HEAD_MESH_DECIMATION_TARGET_REDUCTION = 0.5 # Target for head mesh decimation (e.g., 0.5 = 50% reduction)
+        self.HEAD_MESH_POST_DECIMATION_FILL_HOLE_SIZE = 50.0 # Increased significantly for decimation-induced holes
+
+        # Parameters for final helmet clipping and smoothing
+        self.FINAL_CLIPPING_BOUNDS = [-21, 20, -20, 20, -20, -3]
+        self.SMOOTHING_ITERATIONS = 70
+        self.SMOOTHING_PASS_BAND = 0.04
+        self.SMOOTHING_FILL_HOLE_SIZE = 20.0 # For the smoothed surface section
+
+        # Debugging flags - set to True/False as needed
+        self.DEBUG_HEAD_MESH_HEALING_PLOT = True # To visually inspect head mesh after decimation+healing
+        self.DEBUG_BOOLEAN_PLOTS = True # Flag for _perform_robust_boolean_difference debug plots
+        # --- End Configurable Parameters ---
+
         # Load helmet and head meshes
         self.helmet_mesh_file = helmet_mesh_file
         self.head_mesh_file = head_mesh_file
         self.animal_name = animal_name
-        
+
         # check if one of default helmet types
         if 'Flat' in self.helmet_mesh_file:
             self.helmet_type = 'Flat'
@@ -183,46 +207,52 @@ class MeshManipulationWindow(QtWidgets.QWidget):
             self.helmet_type = 'Winged'
         else:
             self.helmet_type = None
-        
+
         # Load and triangulate meshes
         helmet_mesh = pv.read(self.helmet_mesh_file).triangulate(inplace=True)
         head_mesh = pv.read(self.head_mesh_file).triangulate(inplace=True)
-        
+
         # Clean the head mesh
-        head_mesh.clean(inplace=True)
-        
+        # Using the centralized GLOBAL_CLEAN_TOLERANCE
+        head_mesh.clean(tolerance=self.GLOBAL_CLEAN_TOLERANCE, inplace=True)
+
         # Determine chin piece based on helmet type and preprocess
         if self.helmet_type is None:
-            self.og_head_mesh, self.helmet_mesh = self.mesh_preprocess(head_mesh, 
-                                                                       helmet_mesh, 
-                                                                       name=self.animal_name)
-        else: 
+            self.og_head_mesh, self.helmet_mesh = self.mesh_preprocess(head_mesh,
+                                                                        helmet_mesh,
+                                                                        name=self.animal_name)
+        else:
             if self.helmet_type == 'Flat':
                 self.chin_mesh_file = get_template_path('FlatChinPiece.stl')
                 chin_mesh = pv.read(self.chin_mesh_file).triangulate(inplace=True)
             elif self.helmet_type == 'Winged':
                 self.chin_mesh_file = get_template_path('WingedChinPiece.stl')
                 chin_mesh = pv.read(self.chin_mesh_file).triangulate(inplace=True)
-        
+
             self.og_head_mesh, self.helmet_mesh, self.chin_mesh = self.mesh_preprocess(head_mesh,
-                                                                                       helmet_mesh,
-                                                                                       chin_mesh, 
-                                                                                       name=self.animal_name)
-                
+                                                                                         helmet_mesh,
+                                                                                         chin_mesh,
+                                                                                         name=self.animal_name)
+
         # Connect quit signals
         self.destroyed.connect(QtWidgets.qApp.quit)
         self.destroyed.connect(self.close_plotter)
 
         # Set default transformation parameters
         self.offset = [0, 0, 0]
-        self.scaling_factor = 1.0
+
+        # Calculate scaling required to give Nmm of padding from L to R
+        # this is actually an offset distance not a scaling
+        self.scaling_factor = .5
+
         self.plotter = None  # Initialize plotter to None
-        
+
         # Create a copy of the original mesh for manipulation
         self.head_mesh = self.og_head_mesh.copy(deep=True)
-        
+
         # Initialize UI
         self.setup_ui()
+
 
     def setup_ui(self):
         """Set up the user interface."""
@@ -236,16 +266,16 @@ class MeshManipulationWindow(QtWidgets.QWidget):
 
         # Rotation controls
         self._setup_rotation_controls()
-        
+
         # Expansion controls
         self._setup_expansion_controls()
-        
+
         # Translation controls
         self._setup_translation_controls()
-        
+
         # Smoothing controls
         self._setup_smoothing_controls()
-                    
+
         # Chin piece toggle
         self._setup_chin_controls()
 
@@ -278,7 +308,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         expand_layout.addWidget(minus_button)
 
         # Label
-        self.scaling_label = QtWidgets.QLabel(f"Expansion: {self.scaling_factor:.2f}", self)
+        self.scaling_label = QtWidgets.QLabel(f"Offset(mm): {self.scaling_factor:.2f}", self)
         expand_layout.addWidget(self.scaling_label)
 
         # Plus button
@@ -296,7 +326,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         self.LR_translation = TranslationButton('LR', self, translation_layout)  # Left-Right
         self.PA_translation = TranslationButton('PA', self, translation_layout)  # Posterior-Anterior
         self.DV_translation = TranslationButton('DV', self, translation_layout)  # Dorsal-Ventral
-        
+
         # Store in list for easier access
         self.translation_list = [self.LR_translation, self.PA_translation, self.DV_translation]
 
@@ -328,7 +358,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         send_button.clicked.connect(self.send_for_subtraction)
         send_button.setStyleSheet("background-color: green")
         self.layout.addWidget(send_button)
-        
+
         # Save button (disabled until subtraction is done)
         self.save_button = QtWidgets.QPushButton("Save", self)
         self.save_button.clicked.connect(self.save_mesh)
@@ -350,6 +380,9 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         self.plotter.show_bounds(grid='front', location='outer', all_edges=True)
         self.plotter.show()
 
+        # Update intial plot
+        self.update_plotter()
+
     def close_plotter(self):
         """Close the PyVista plotter if it exists."""
         if hasattr(self, 'plotter') and self.plotter is not None:
@@ -361,98 +394,222 @@ class MeshManipulationWindow(QtWidgets.QWidget):
 
     def expand_mesh_plus(self):
         """Increase the expansion factor."""
-        self.scaling_factor += 0.01
+        self.scaling_factor += 0.1
         self.scaling_label.setText(f"Expansion: {self.scaling_factor:.2f}")
         self.update_plotter()
 
     def expand_mesh_minus(self):
         """Decrease the expansion factor."""
-        self.scaling_factor -= 0.01
+        self.scaling_factor -= 0.1
         self.scaling_label.setText(f"Expansion: {self.scaling_factor:.2f}")
         self.update_plotter()
 
     def translate_mesh(self):
         """Translate the mesh based on translation button values."""
         self.update_plotter()
-        
+
     def update_smoothing_label(self, value):
         """Update the smoothing label when slider value changes."""
         float_value = value / 100.0
         self.smoothing_label.setText(f"Smoothing: {float_value:.2f}")
         self.update_plotter()
-    
+
     def ignore_chin(self):
         """Toggle chin piece subtraction."""
         self.chin_subtract_bool = self.chin_toggle.isChecked()
-    
+
     def send_for_subtraction(self):
         """Perform the boolean subtraction operation."""
-        # Check if head mesh is manifold and try to repair if not
-        if not self.head_mesh.is_manifold:
-            print("Warning, non-manifold head segmentation, attempting repair. "
-                  "May cause crashing during subtraction")
-            
-            # Try to fix the mesh - install issues with pymeshfix
-# =============================================================================
-#             meshfix = pymeshfix.MeshFix(self.head_mesh)
-#             meshfix.repair()
-#             self.head_mesh = meshfix.mesh              
-#         
-# =============================================================================
-        # Save the smoothed head mesh
+
+        print("--- Starting initial mesh preparation ---")
+
+        # Initial cleaning for head mesh
+        self.head_mesh = self.head_mesh.clean(tolerance=self.GLOBAL_CLEAN_TOLERANCE, inplace=False)
+        self.head_mesh.fill_holes(hole_size=self.DEFAULT_FILL_HOLE_SIZE, inplace=True)
+        self.head_mesh.compute_normals(inplace=True)
+        self.head_mesh.extract_largest(inplace=True)
+        self.head_mesh.clean(tolerance=self.GLOBAL_CLEAN_TOLERANCE, inplace=True)
+
+        # --- Head Mesh Decimation and Post-Decimation Healing ---
+        initial_faces = self.head_mesh.n_faces
+        # Only decimate if the head mesh is large enough to benefit significantly
+        if initial_faces > self.HEAD_MESH_DECIMATION_THRESHOLD_FACES:
+            print(f"Decimating head mesh from {initial_faces} faces...")
+            self.head_mesh.triangulate(inplace=True)
+            self.head_mesh = self.head_mesh.decimate(target_reduction=self.HEAD_MESH_DECIMATION_TARGET_REDUCTION)
+            print(f"Head mesh decimated to {self.head_mesh.n_faces} faces.")
+
+            # --- IMPORTANT: Apply healing steps to head_mesh after decimation ---
+            print("Applying post-decimation healing to head mesh...")
+            self.head_mesh.clean(tolerance=self.GLOBAL_CLEAN_TOLERANCE, inplace=True)
+            self.head_mesh = self.head_mesh.extract_surface() # Re-extract surface if decimation introduced internal issues
+
+            # Use the specific hole size for post-decimation healing
+            self.head_mesh.fill_holes(hole_size=self.HEAD_MESH_POST_DECIMATION_FILL_HOLE_SIZE, inplace=True)
+
+            self.head_mesh.extract_largest(inplace=True)
+            self.head_mesh.clean(tolerance=self.GLOBAL_CLEAN_TOLERANCE, inplace=True)
+            self.head_mesh.compute_normals(inplace=True, cell_normals=False, point_normals=True)
+            print("Post-decimation healing for head mesh complete.")
+
+            # --- Optional: Debug plot for the head mesh after its healing ---
+            if self.DEBUG_HEAD_MESH_HEALING_PLOT:
+                print("Displaying head mesh after decimation and healing for debugging...")
+                head_debug_plotter = pv.Plotter()
+                head_debug_plotter.add_text("Head Mesh After Decimation + Healing", font_size=10)
+                head_debug_plotter.add_mesh(self.head_mesh, color='lightgreen', opacity=0.8, show_edges=True)
+                head_debug_plotter.add_mesh(self.head_mesh.extract_feature_edges(boundary_edges=True), color='black', line_width=5)
+                head_debug_plotter.show()
+            # --- END Optional Debug Plot ---
+
+        print(f"Head mesh (final pre-boolean) manifold: {self.head_mesh.is_manifold}, watertight: {_is_mesh_watertight(self.head_mesh)}")
+
+
         head_mesh_filename = f'head_stls/{self.animal_name}_smoothed.stl'
+        os.makedirs(os.path.dirname(head_mesh_filename), exist_ok=True)
         self.head_mesh.save(head_mesh_filename)
         print(f'Smoothed headmesh saved at {head_mesh_filename}')
-        
-        # Subtract chin piece if enabled
+
+        # --- Chin Mesh Processing ---
         if self.chin_subtract_bool:
-            print(f"Chin mesh is manifold: {self.chin_mesh.is_manifold}")
-            self.chin_bool_mesh = self.chin_mesh.boolean_difference(self.head_mesh)
-            
-            # Get rid of small residues from chin topology
-# =============================================================================
-#             self.chin_bool_mesh.extract_largest(inplace=True)
-# =============================================================================
-        
-        # Perform the main boolean subtraction    
-        bool_mesh = self.helmet_mesh.boolean_difference(self.head_mesh)
-        
-        # Smooth parts with sharp edges
-        # Define a box around the region to smooth
-        bounds = [-21, 20, -20, 20, -20, -3]
-        clipped = bool_mesh.clip_box(bounds)
-        clipping = bool_mesh.clip_box(bounds, invert=False)
-        surface = clipping.extract_geometry()
-        
-        # Apply Taubin smoothing to reduce sharp edges
-        smooth = surface.smooth_taubin(n_iter=70, pass_band=0.04, 
-                                      non_manifold_smoothing=True, 
-                                      normalize_coordinates=True)
-        smooth.fill_holes(hole_size=20, inplace=True)
-        
-        # Combine the smoothed part with the main mesh
-        self.final_mesh = clipped + smooth
-        self.final_mesh = self.final_mesh.extract_surface()
-        
-        # Enable save button and update display
-        self.save_button.setDisabled(False)
-        self.save_button.setStyleSheet("background-color: lightgreen")
+            # Pre-process chin mesh
+            self.chin_mesh = self.chin_mesh.clean(tolerance=self.GLOBAL_CLEAN_TOLERANCE, inplace=False)
+            self.chin_mesh.fill_holes(hole_size=self.DEFAULT_FILL_HOLE_SIZE, inplace=True)
+            self.chin_mesh.compute_normals(inplace=True)
+            self.chin_mesh.extract_largest(inplace=True)
+            self.chin_mesh.clean(tolerance=self.GLOBAL_CLEAN_TOLERANCE, inplace=True)
+            print(f"Chin mesh (cleaned) manifold: {self.chin_mesh.is_manifold}, watertight: {_is_mesh_watertight(self.chin_mesh)}")
+
+            # Perform chin subtraction
+            self.chin_bool_mesh = _perform_robust_boolean_difference(
+                mesh_a=self.chin_mesh,
+                mesh_b=self.head_mesh,
+                operation_name="chin subtraction",
+                debug_plot=self.DEBUG_BOOLEAN_PLOTS # Use class-level debug flag
+            )
+            if self.chin_bool_mesh is None or self.chin_bool_mesh.n_points == 0:
+                print("Chin subtraction failed or resulted in an empty mesh. Skipping chin post-processing.")
+            else:
+                self.chin_bool_mesh.clean(tolerance=self.GLOBAL_CLEAN_TOLERANCE, inplace=True)
+                self.chin_bool_mesh.fill_holes(self.DEFAULT_FILL_HOLE_SIZE, inplace=True)
+                self.chin_bool_mesh.compute_normals(inplace=True)
+                print(f"Chin boolean result manifold: {self.chin_bool_mesh.is_manifold}, watertight: {_is_mesh_watertight(self.chin_bool_mesh)}")
+
+
+        # --- Helmet Mesh Processing ---
+        # Pre-process helmet_mesh
+        self.helmet_mesh = self.helmet_mesh.clean(tolerance=self.GLOBAL_CLEAN_TOLERANCE, inplace=False)
+        self.helmet_mesh.fill_holes(hole_size=self.DEFAULT_FILL_HOLE_SIZE, inplace=True) # Changed from 100.0 to DEFAULT_FILL_HOLE_SIZE
+        self.helmet_mesh.compute_normals(inplace=True)
+        self.helmet_mesh.extract_largest(inplace=True)
+        self.helmet_mesh.clean(tolerance=self.GLOBAL_CLEAN_TOLERANCE, inplace=True)
+        print(f"Helmet mesh (cleaned) manifold: {self.helmet_mesh.is_manifold}, watertight: {_is_mesh_watertight(self.helmet_mesh)}")
+
+        # Perform main helmet-head subtraction
+        bool_mesh = _perform_robust_boolean_difference(
+            mesh_a=self.helmet_mesh,
+            mesh_b=self.head_mesh,
+            operation_name="main helmet-head subtraction",
+            debug_plot=self.DEBUG_BOOLEAN_PLOTS # Use class-level debug flag
+        )
+
+        if bool_mesh is None or bool_mesh.n_points == 0:
+            print("Main helmet-head subtraction failed or resulted in an empty mesh. Cannot proceed with smoothing/combination.")
+            self.final_mesh = pv.PolyData()
+            self.save_button.setDisabled(True)
+            self.save_button.setStyleSheet("background-color: lightgray")
+            self.update_plotter(final_plot=True)
+            return
+
+        # --- Clipping and Smoothing ---
+        # Use class-level bounds
+        clipped = bool_mesh.clip_box(self.FINAL_CLIPPING_BOUNDS, invert=True, crinkle=True).extract_surface()
+        clipping = bool_mesh.clip_box(self.FINAL_CLIPPING_BOUNDS, invert=False, crinkle=True).extract_surface()
+
+        # Ensure PolyData type after clipping
+        if not isinstance(clipped, pv.PolyData):
+            clipped = clipped.extract_surface()
+        if not isinstance(clipping, pv.PolyData):
+            clipping = clipping.extract_surface()
+
+        # Process the surface for smoothing
+        surface = clipping.clean(tolerance=self.GLOBAL_CLEAN_TOLERANCE, inplace=False).fill_holes(self.DEFAULT_FILL_HOLE_SIZE, inplace=False) # Changed from 1.0
+        surface.compute_normals(inplace=True)
+        surface.extract_largest(inplace=True)
+        surface.clean(tolerance=self.GLOBAL_CLEAN_TOLERANCE, inplace=True)
+
+        if surface.n_points == 0:
+            print("Clipped surface for smoothing is empty. Skipping smoothing.")
+            smooth = pv.PolyData()
+        else:
+            # Use class-level smoothing parameters
+            smooth = surface.smooth_taubin(n_iter=self.SMOOTHING_ITERATIONS, pass_band=self.SMOOTHING_PASS_BAND,
+                                            non_manifold_smoothing=True,
+                                            normalize_coordinates=True)
+            smooth.fill_holes(hole_size=self.SMOOTHING_FILL_HOLE_SIZE, inplace=True)
+            smooth.clean(tolerance=self.GLOBAL_CLEAN_TOLERANCE, inplace=True)
+            smooth.compute_normals(inplace=True)
+            smooth.extract_largest(inplace=True)
+            smooth.clean(tolerance=self.GLOBAL_CLEAN_TOLERANCE, inplace=True)
+
+        # --- Final Mesh Assembly ---
+        if clipped.n_points > 0 and smooth.n_points > 0:
+            temp_combined_mesh = clipped + smooth
+            self.final_mesh = temp_combined_mesh.extract_surface()
+            self.final_mesh.clean(tolerance=self.GLOBAL_CLEAN_TOLERANCE, inplace=True)
+
+            self.final_mesh.fill_holes(hole_size=self.DEFAULT_FILL_HOLE_SIZE, inplace=True) # Changed from 100.0
+            self.final_mesh.compute_normals(inplace=True)
+            self.final_mesh.extract_largest(inplace=True)
+            self.final_mesh.clean(tolerance=self.GLOBAL_CLEAN_TOLERANCE, inplace=True)
+            self.final_mesh = self.final_mesh.extract_surface()
+
+        elif clipped.n_points > 0:
+            self.final_mesh = clipped.copy()
+            if not isinstance(self.final_mesh, pv.PolyData):
+                self.final_mesh = self.final_mesh.extract_surface()
+            self.final_mesh.clean(tolerance=self.GLOBAL_CLEAN_TOLERANCE, inplace=True)
+            self.final_mesh.fill_holes(hole_size=self.DEFAULT_FILL_HOLE_SIZE, inplace=True) # Changed from 100.0
+            self.final_mesh.compute_normals(inplace=True)
+
+
+        elif smooth.n_points > 0:
+            self.final_mesh = smooth.copy()
+            if not isinstance(self.final_mesh, pv.PolyData):
+                self.final_mesh = self.final_mesh.extract_surface()
+            self.final_mesh.clean(tolerance=self.GLOBAL_CLEAN_TOLERANCE, inplace=True)
+            self.final_mesh.fill_holes(hole_size=self.DEFAULT_FILL_HOLE_SIZE, inplace=True) # Changed from 100.0
+            self.final_mesh.compute_normals(inplace=True)
+        else:
+            self.final_mesh = pv.PolyData()
+
+        # --- Final State and UI Update ---
+        if self.final_mesh.n_points > 0:
+            self.save_button.setDisabled(False)
+            self.save_button.setStyleSheet("background-color: lightgreen")
+        else:
+            self.final_mesh = pv.PolyData()
+            self.save_button.setDisabled(True)
+            self.save_button.setStyleSheet("background-color: lightgray")
+            print("Final mesh is empty. Save button disabled.")
+
         self.update_plotter(final_plot=True)
-        
+
+
     def save_mesh(self):
         """Save the final helmet mesh and chin piece if enabled."""
         # Create directory if it doesn't exist
         if not os.path.exists('helmets'):
             os.makedirs('helmets')
-            
+
         # Generate filename with metadata
         self.save_file = (f'helmets/{date.today()}_{self.animal_name}_'
                           f'{str(self.scaling_factor)[2:]}_DV_'
                           f'{str(self.DV_translation.value)}.stl')
-        
+
         # Save the helmet mesh
         self.final_mesh.extract_geometry().save(self.save_file)
-        
+
         # Save chin piece if it was subtracted
         if self.chin_subtract_bool:
             chin_save_file = f'helmets/{date.today()}_{self.animal_name}_chinpiece.stl'
@@ -460,7 +617,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
             success_message = f'{self.save_file} and chinpiece successfully saved!'
         else:
             success_message = f'{self.save_file} successfully saved!'
-            
+
         # Display success message
         message = QtWidgets.QLabel(success_message)
         self.layout.addWidget(message)
@@ -470,24 +627,26 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         """Update the plotter with current mesh transformations."""
         if not hasattr(self, 'plotter') or self.plotter is None:
             return
-            
+
         # Remove the previous head actor
         if hasattr(self, 'head_actor') and self.head_actor is not None:
             self.plotter.remove_actor(self.head_actor, render=False)
-        
+
         if final_plot:
             # Show final result after subtraction
             self.plotter.clear()
             self.plotter.add_mesh(self.final_mesh)
+            self.plotter.add_mesh(self.og_head_mesh, color = 'cyan', opacity = .5)
             if self.chin_subtract_bool and hasattr(self, 'chin_bool_mesh'):
                 self.plotter.add_mesh(self.chin_bool_mesh)
         else:
             # Apply transformations to the mesh
             # Start with a fresh copy of the original
             self.head_mesh = self.og_head_mesh.copy(deep=True)
-            
+
             # Apply scaling
-            self.head_mesh = self.head_mesh.scale([self.scaling_factor, 1, 1])
+            self.head_mesh = offset_mesh(self.head_mesh, self.scaling_factor)
+            print(f'After scaling and rotating, head mesh is manifold: {self.head_mesh.is_manifold}') # Relocated print
             
             # Apply smoothing
             smoothing_factor = self.smoothing_slider.value() / 100.0
@@ -496,22 +655,24 @@ class MeshManipulationWindow(QtWidgets.QWidget):
                     n_iter=20,
                     relaxation_factor=smoothing_factor
                 )
-            
+
             # Apply translation
             self.head_mesh.points = self.head_mesh.points + [
                 self.LR_translation.value,
                 self.PA_translation.value,
                 self.DV_translation.value
             ]
-            
+            print(f'After centering, head mesh is manifold: {self.head_mesh.is_manifold}') # Relocated print
+            print(f'After translating, head mesh is manifold: {self.head_mesh.is_manifold}') # Relocated print
+
             # Apply rotation
             self.head_mesh.rotate_x(self.rotation_button_X.value, inplace=True)
             self.head_mesh.rotate_y(self.rotation_button_Y.value, inplace=True)
             self.head_mesh.rotate_z(self.rotation_button_Z.value, inplace=True)
-            
+
             # Add the updated mesh to the plotter
             self.head_actor = self.plotter.add_mesh(self.head_mesh, color='magenta')
-            
+
         # Update the plotter display
         self.plotter.update()
 
@@ -523,103 +684,98 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         """Show the window and start the event loop."""
         self.show()
 
-    def mesh_preprocess(self, head_mesh, helmet_mesh, chin_mesh,
-                        name='Example', separate=False, scaling=1.00):
+    def mesh_preprocess(self, head_mesh, helmet_mesh, chin_mesh=None,
+                        name='Example', separate=False):
         """
         Prepare the head and helmet meshes for manipulation.
-        
+
         Parameters
         ----------
         head_mesh : pyvista.PolyData
             Head mesh to position
         helmet_mesh : pyvista.PolyData
             Helmet template mesh
+        chin_mesh : pyvista.PolyData, optional
+            Chin mesh, by default None
         name : str, optional
             Name to emboss on the helmet, by default 'Example'
         separate : bool, optional
             Whether to keep meshes separate, by default False
-        scaling : float, optional
-            Initial scaling factor, by default 1.00
-            
-        Returns
-        -------
-        tuple
-            (head_mesh, helmet_mesh) - Preprocessed meshes
         """
         print(f'Before preprocessing, head mesh is manifold: {head_mesh.is_manifold}')
-        
-               
-        # Scale up and rotate head mesh
-        head_mesh.scale([scaling, scaling, scaling], inplace=True)
+
+        # rotate head mesh
         head_mesh.rotate_x(270, inplace=True)
-        print(f'After scaling and rotating, head mesh is manifold: {head_mesh.is_manifold}')
-    
-        # Align the centers of both meshes at 0 then translate 
+        # Note: The manifold check here is likely redundant as no topological changes occurred yet.
+        # print(f'After scaling and rotating, head mesh is manifold: {head_mesh.is_manifold}') # Moved to update_plotter
+
+        # Align the centers of both meshes at 0 then translate
         helmet_mesh.points -= helmet_mesh.center
         head_mesh.points -= head_mesh.center
-        print(f'After centering, head mesh is manifold: {head_mesh.is_manifold}')
-        
+        # print(f'After centering, head mesh is manifold: {head_mesh.is_manifold}') # Moved to update_plotter
+
         # initial transform of head_mesh
         # Format [LR, PA, DV] or [X, Y, Z]
         LR_offset = 0.0
         PA_offset = -3.5
         DV_offset = -3.5
-        
+
         offset = [
             LR_offset,
             helmet_mesh.bounds[2] - head_mesh.bounds[2] + PA_offset,
             helmet_mesh.bounds[5] - head_mesh.bounds[5] + DV_offset
         ]
-    
+
         # Translate the head mesh to match the helmet mesh
         head_mesh.translate(offset, inplace=True)
-        print(f'After translating, head mesh is manifold: {head_mesh.is_manifold}')
-        
+        # print(f'After translating, head mesh is manifold: {head_mesh.is_manifold}') # Moved to update_plotter
+
         if self.helmet_type == None:
             return head_mesh, helmet_mesh
-        
+
         # Create text object for embossing
         text = pv.Text3D(name, depth=0.9)
         text.scale([2.5, 2.5, 2.5], inplace=True)
         text.rotate_z(90, inplace=True)
-        
+
         # Position text based on helmet type
         if self.helmet_type == 'Flat':
             text_offset = [31, 5, -14.5]
         elif self.helmet_type == 'Winged':
             text_offset = [27, 5, -11.8]
         text.points += text_offset
-        
+
         # Add text to helmet to emboss
         helmet_mesh = helmet_mesh + text
-            
+
         # Zero the center of chin mesh
-        chin_mesh.points -= chin_mesh.center
-        
-        # Position chin piece mesh
-        # Format [LR, PA, DV] or [X, Y, Z]
-        if self.helmet_type == 'Flat':
-            chin_offset = [0, 6, -25.5]
-        if self.helmet_type == 'Winged':
-            chin_offset = [0,6,-22.3]
-        chin_mesh.translate(chin_offset, inplace=True)
-        
-        # Add text label for chin piece
-        chin_text = pv.Text3D(name, depth=0.9)
-        chin_text.scale([2.5, 2.5, 2.5], inplace=True)
-        
-        # Position text based on helmet type
-        if self.helmet_type == 'Flat':
-            chin_text_offset = [28, 5, -19.8]
-            chin_text.rotate_z(-90, inplace=True)
-            chin_text.rotate_x(180, inplace=True)
-            
-        elif self.helmet_type == 'Winged':
-            chin_text_offset = [27, 5, -16]
-            chin_text.rotate_z(-90, inplace=True)
-            chin_text.rotate_x(180, inplace=True)
-            
-        chin_text.translate(chin_text_offset, inplace=True)
-        chin_mesh = chin_mesh + chin_text
-    
-        return head_mesh, helmet_mesh, chin_mesh
+        if chin_mesh is not None:
+            chin_mesh.points -= chin_mesh.center
+
+            # Position chin piece mesh
+            # Format [LR, PA, DV] or [X, Y, Z]
+            if self.helmet_type == 'Flat':
+                chin_offset = [0, 6, -25.5]
+            if self.helmet_type == 'Winged':
+                chin_offset = [0,6,-22.3]
+            chin_mesh.translate(chin_offset, inplace=True)
+
+            # Add text label for chin piece
+            chin_text = pv.Text3D(name, depth=0.9)
+            chin_text.scale([2.5, 2.5, 2.5], inplace=True)
+
+            # Position text based on helmet type
+            if self.helmet_type == 'Flat':
+                chin_text_offset = [28, 5, -19.8]
+                chin_text.rotate_z(-90, inplace=True)
+                chin_text.rotate_x(180, inplace=True)
+
+            elif self.helmet_type == 'Winged':
+                chin_text_offset = [27, 5, -16]
+                chin_text.rotate_z(-90, inplace=True)
+                chin_text.rotate_x(180, inplace=True)
+
+            chin_text.translate(chin_text_offset, inplace=True)
+            chin_mesh = chin_mesh + chin_text
+
+        return head_mesh, helmet_mesh, chin_mesh if chin_mesh is not None else None
