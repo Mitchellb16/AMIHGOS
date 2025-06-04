@@ -177,12 +177,12 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         self.GLOBAL_CLEAN_TOLERANCE = 0.01
         # Default hole size for filling general small holes (used in initial cleaning, chin, helmet)
         # This will be used in _perform_robust_boolean_difference too if its DEFAULT_HOLE_SIZE is linked to this.
-        self.DEFAULT_FILL_HOLE_SIZE = 10.0
+        self.DEFAULT_FILL_HOLE_SIZE = 1000.0
 
         # Parameters specific to head mesh decimation and post-decimation healing
         self.HEAD_MESH_DECIMATION_THRESHOLD_FACES = 10000 # Only decimate if more than this many faces
         self.HEAD_MESH_DECIMATION_TARGET_REDUCTION = 0.5 # Target for head mesh decimation (e.g., 0.5 = 50% reduction)
-        self.HEAD_MESH_POST_DECIMATION_FILL_HOLE_SIZE = 50.0 # Increased significantly for decimation-induced holes
+        self.HEAD_MESH_POST_DECIMATION_FILL_HOLE_SIZE = 500.0 # Increased significantly for decimation-induced holes
 
         # Parameters for final helmet clipping and smoothing
         self.FINAL_CLIPPING_BOUNDS = [-21, 20, -20, 20, -20, -3]
@@ -191,8 +191,8 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         self.SMOOTHING_FILL_HOLE_SIZE = 20.0 # For the smoothed surface section
 
         # Debugging flags - set to True/False as needed
-        self.DEBUG_HEAD_MESH_HEALING_PLOT = True # To visually inspect head mesh after decimation+healing
-        self.DEBUG_BOOLEAN_PLOTS = True # Flag for _perform_robust_boolean_difference debug plots
+        self.DEBUG_HEAD_MESH_HEALING_PLOT = False # To visually inspect head mesh after decimation+healing
+        self.DEBUG_BOOLEAN_PLOTS = False # Flag for _perform_robust_boolean_difference debug plots
         # --- End Configurable Parameters ---
 
         # Load helmet and head meshes
@@ -636,7 +636,8 @@ class MeshManipulationWindow(QtWidgets.QWidget):
             # Show final result after subtraction
             self.plotter.clear()
             self.plotter.add_mesh(self.final_mesh)
-            self.plotter.add_mesh(self.og_head_mesh, color = 'cyan', opacity = .5)
+            self.plotter.add_mesh(self.og_head_mesh, color = 'cyan',
+                                  style = 'wireframe', opacity = .5)
             if self.chin_subtract_bool and hasattr(self, 'chin_bool_mesh'):
                 self.plotter.add_mesh(self.chin_bool_mesh)
         else:
