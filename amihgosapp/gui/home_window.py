@@ -174,7 +174,7 @@ class HomeWindow:
     def browse_stl_files(self):
         """Open file dialog for selecting STL files"""
         stl_filename = filedialog.askopenfilename(
-            initialdir='./head_stls/',
+            initialdir='amihgosapp/resources/head_stls',
             filetypes=[("STL model", ".stl")]
         )
         
