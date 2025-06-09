@@ -37,7 +37,7 @@ def _is_mesh_watertight(mesh: pv.PolyData) -> bool:
     return boundary_edges.n_points == 0
 
 # Helper function for robust boolean difference
-def _perform_robust_boolean_difference(mesh_a: pv.PolyData, mesh_b: pv.PolyData, operation_name: str = "subtraction", debug_plot: bool = False) -> pv.PolyData | None:
+def _perform_robust_boolean_difference(mesh_a: pv.PolyData, mesh_b: pv.PolyData, operation_name: str = "subtraction", debug_plot: bool = True) -> pv.PolyData | None:
     """
     Performs a robust boolean difference (mesh_a - mesh_b) with pre-processing.
 

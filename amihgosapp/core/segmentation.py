@@ -106,28 +106,32 @@ class SegmentationScreen:
                 img, thresholds[0], thresholds[1], thresholds[2], thresholds[3],
                 255, 0)
             isovalue = 64.0
-        
+
         # Apply median filter
         if median_filter:
             print("Applying Median filter")
-            median_filter_val = 15
+            median_filter_val = 3
             # Filter twice to fill in ear holes
-            median_smooth = sitk.Median(img, [median_filter_val, median_filter_val, median_filter_val])
-            median_detail = sitk.Median(img, [2, 2, 2])
-            img = sitk.Add(median_smooth, median_detail)
-
+            #median_smooth = sitk.Median(img, [median_filter_val, median_filter_val, median_filter_val])
+            img = sitk.BinaryMedian(img, [median_filter_val]*3, foregroundValue = 255)
+                    
+        # Fill holes in the image
+        img = sitk.BinaryMorphologicalClosing(img, [10]*3, foregroundValue=255)
+        
+        
         # Pad the image
         stats = sitk.StatisticsImageFilter()
         stats.Execute(img)
         min_val = stats.GetMinimum()
         pad = [5, 5, 5]
         img = sitk.ConstantPad(img, pad, pad, min_val)
-    
+        
         # Convert to VTK image and extract surface
         vtkimg = sitk_utils.sitk2vtk(img)
         mesh = vtk_utils.extractSurface(vtkimg, isovalue)
         vtkimg = None
         
+                       
         # Clean the mesh
         mesh2 = vtk_utils.cleanMesh(mesh, connectivity_filter)
         mesh = None

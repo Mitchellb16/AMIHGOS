@@ -243,7 +243,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
 
         # Calculate scaling required to give Nmm of padding from L to R
         # this is actually an offset distance not a scaling
-        self.scaling_factor = .5
+        self.scaling_factor = 1.8
 
         self.plotter = None  # Initialize plotter to None
 
@@ -645,9 +645,6 @@ class MeshManipulationWindow(QtWidgets.QWidget):
             # Start with a fresh copy of the original
             self.head_mesh = self.og_head_mesh.copy(deep=True)
 
-            # Apply scaling
-            self.head_mesh = offset_mesh(self.head_mesh, self.scaling_factor)
-            print(f'After scaling and rotating, head mesh is manifold: {self.head_mesh.is_manifold}') # Relocated print
             
             # Apply smoothing
             smoothing_factor = self.smoothing_slider.value() / 100.0
@@ -656,6 +653,11 @@ class MeshManipulationWindow(QtWidgets.QWidget):
                     n_iter=20,
                     relaxation_factor=smoothing_factor
                 )
+                
+            # Apply scaling
+            self.head_mesh = offset_mesh(self.head_mesh, self.scaling_factor)
+            print(f'After scaling and rotating, head mesh is manifold: {self.head_mesh.is_manifold}') # Relocated print
+            
 
             # Apply translation
             self.head_mesh.points = self.head_mesh.points + [
