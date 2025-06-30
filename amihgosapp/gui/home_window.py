@@ -129,7 +129,7 @@ class HomeWindow:
         
         # Create selection dropdown
         self.helmet_selection = StringVar()
-        self.helmet_selection.set('FlatHelmet.stl')
+        self.helmet_selection.set('Flat_helmet.stl')
         
         self.dropdown = OptionMenu(
             self.intro_frame, 

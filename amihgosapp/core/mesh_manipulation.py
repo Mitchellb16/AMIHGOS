@@ -534,6 +534,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         
         # add back to the clipped mesh
         self.final_mesh = clipped + smooth
+        self.save_button.setDisabled(False)
 
         self.update_plotter(final_plot=True)
 
