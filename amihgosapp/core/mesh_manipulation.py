@@ -185,7 +185,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         self.HEAD_MESH_POST_DECIMATION_FILL_HOLE_SIZE = 500.0 # Increased significantly for decimation-induced holes
 
         # Parameters for final helmet clipping and smoothing
-        self.FINAL_CLIPPING_BOUNDS = [-21, 20, -20, 20, -20, -3]
+        self.FINAL_CLIPPING_BOUNDS = [-25, 22, -23, 23, -12, -6]
         self.SMOOTHING_ITERATIONS = 70
         self.SMOOTHING_PASS_BAND = 0.04
         self.SMOOTHING_FILL_HOLE_SIZE = 20.0 # For the smoothed surface section
@@ -243,7 +243,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
 
         # Calculate scaling required to give Nmm of padding from L to R
         # this is actually an offset distance not a scaling
-        self.scaling_factor = 1.8
+        self.scaling_factor = 1.0
 
         self.plotter = None  # Initialize plotter to None
 
@@ -465,7 +465,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         print(f"Head mesh (final pre-boolean) manifold: {self.head_mesh.is_manifold}, watertight: {_is_mesh_watertight(self.head_mesh)}")
 
 
-        head_mesh_filename = f'head_stls/{self.animal_name}_smoothed.stl'
+        head_mesh_filename = f'amihgosapp/resources/head_stls/{self.animal_name}_smoothed_mmoffset{int(self.scaling_factor * 10)}.stl'
         os.makedirs(os.path.dirname(head_mesh_filename), exist_ok=True)
         self.head_mesh.save(head_mesh_filename)
         print(f'Smoothed headmesh saved at {head_mesh_filename}')
@@ -523,75 +523,17 @@ class MeshManipulationWindow(QtWidgets.QWidget):
 
         # --- Clipping and Smoothing ---
         # Use class-level bounds
-        clipped = bool_mesh.clip_box(self.FINAL_CLIPPING_BOUNDS, invert=True, crinkle=True).extract_surface()
-        clipping = bool_mesh.clip_box(self.FINAL_CLIPPING_BOUNDS, invert=False, crinkle=True).extract_surface()
+        clipped = bool_mesh.clip_box(self.FINAL_CLIPPING_BOUNDS, invert=True, crinkle=False).extract_surface()
+        clipping = bool_mesh.clip_box(self.FINAL_CLIPPING_BOUNDS, invert=False, crinkle=False).extract_surface()
 
-        # Ensure PolyData type after clipping
-        if not isinstance(clipped, pv.PolyData):
-            clipped = clipped.extract_surface()
-        if not isinstance(clipping, pv.PolyData):
-            clipping = clipping.extract_surface()
-
-        # Process the surface for smoothing
-        surface = clipping.clean(tolerance=self.GLOBAL_CLEAN_TOLERANCE, inplace=False).fill_holes(self.DEFAULT_FILL_HOLE_SIZE, inplace=False) # Changed from 1.0
-        surface.compute_normals(inplace=True)
-        surface.extract_largest(inplace=True)
-        surface.clean(tolerance=self.GLOBAL_CLEAN_TOLERANCE, inplace=True)
-
-        if surface.n_points == 0:
-            print("Clipped surface for smoothing is empty. Skipping smoothing.")
-            smooth = pv.PolyData()
-        else:
-            # Use class-level smoothing parameters
-            smooth = surface.smooth_taubin(n_iter=self.SMOOTHING_ITERATIONS, pass_band=self.SMOOTHING_PASS_BAND,
-                                            non_manifold_smoothing=True,
-                                            normalize_coordinates=True)
-            smooth.fill_holes(hole_size=self.SMOOTHING_FILL_HOLE_SIZE, inplace=True)
-            smooth.clean(tolerance=self.GLOBAL_CLEAN_TOLERANCE, inplace=True)
-            smooth.compute_normals(inplace=True)
-            smooth.extract_largest(inplace=True)
-            smooth.clean(tolerance=self.GLOBAL_CLEAN_TOLERANCE, inplace=True)
-
-        # --- Final Mesh Assembly ---
-        if clipped.n_points > 0 and smooth.n_points > 0:
-            temp_combined_mesh = clipped + smooth
-            self.final_mesh = temp_combined_mesh.extract_surface()
-            self.final_mesh.clean(tolerance=self.GLOBAL_CLEAN_TOLERANCE, inplace=True)
-
-            self.final_mesh.fill_holes(hole_size=self.DEFAULT_FILL_HOLE_SIZE, inplace=True) # Changed from 100.0
-            self.final_mesh.compute_normals(inplace=True)
-            self.final_mesh.extract_largest(inplace=True)
-            self.final_mesh.clean(tolerance=self.GLOBAL_CLEAN_TOLERANCE, inplace=True)
-            self.final_mesh = self.final_mesh.extract_surface()
-
-        elif clipped.n_points > 0:
-            self.final_mesh = clipped.copy()
-            if not isinstance(self.final_mesh, pv.PolyData):
-                self.final_mesh = self.final_mesh.extract_surface()
-            self.final_mesh.clean(tolerance=self.GLOBAL_CLEAN_TOLERANCE, inplace=True)
-            self.final_mesh.fill_holes(hole_size=self.DEFAULT_FILL_HOLE_SIZE, inplace=True) # Changed from 100.0
-            self.final_mesh.compute_normals(inplace=True)
-
-
-        elif smooth.n_points > 0:
-            self.final_mesh = smooth.copy()
-            if not isinstance(self.final_mesh, pv.PolyData):
-                self.final_mesh = self.final_mesh.extract_surface()
-            self.final_mesh.clean(tolerance=self.GLOBAL_CLEAN_TOLERANCE, inplace=True)
-            self.final_mesh.fill_holes(hole_size=self.DEFAULT_FILL_HOLE_SIZE, inplace=True) # Changed from 100.0
-            self.final_mesh.compute_normals(inplace=True)
-        else:
-            self.final_mesh = pv.PolyData()
-
-        # --- Final State and UI Update ---
-        if self.final_mesh.n_points > 0:
-            self.save_button.setDisabled(False)
-            self.save_button.setStyleSheet("background-color: lightgreen")
-        else:
-            self.final_mesh = pv.PolyData()
-            self.save_button.setDisabled(True)
-            self.save_button.setStyleSheet("background-color: lightgray")
-            print("Final mesh is empty. Save button disabled.")
+        # smoothing
+        surface = clipping.extract_geometry()
+        smooth = surface.smooth_taubin(n_iter=70, pass_band = .04,
+                                       non_manifold_smoothing=True, normalize_coordinates=True)
+        smooth.fill_holes(hole_size = 20, inplace=True)
+        
+        # add back to the clipped mesh
+        self.final_mesh = clipped + smooth
 
         self.update_plotter(final_plot=True)
 
@@ -636,7 +578,22 @@ class MeshManipulationWindow(QtWidgets.QWidget):
             # Show final result after subtraction
             self.plotter.clear()
             self.plotter.add_mesh(self.final_mesh)
-            self.plotter.add_mesh(self.og_head_mesh, color = 'cyan',
+            
+            # load original head mesh and just do rotations and translation to 
+            # see how this would fit on the original head topology            
+            self.head_mesh = self.og_head_mesh.copy(deep=True)
+            # Apply translation
+            self.head_mesh.points = self.head_mesh.points + [
+                self.LR_translation.value,
+                self.PA_translation.value,
+                self.DV_translation.value
+            ]
+            # Apply rotation
+            self.head_mesh.rotate_x(self.rotation_button_X.value, inplace=True)
+            self.head_mesh.rotate_y(self.rotation_button_Y.value, inplace=True)
+            self.head_mesh.rotate_z(self.rotation_button_Z.value, inplace=True)
+            
+            self.plotter.add_mesh(self.head_mesh, color = 'cyan',
                                   style = 'wireframe', opacity = .5)
             if self.chin_subtract_bool and hasattr(self, 'chin_bool_mesh'):
                 self.plotter.add_mesh(self.chin_bool_mesh)
