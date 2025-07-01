@@ -717,8 +717,8 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         # initial transform of head_mesh
         # Format [LR, PA, DV] or [X, Y, Z]
         LR_offset = 0.0
-        PA_offset = -2.5
-        DV_offset = -3.75
+        PA_offset = -2.75
+        DV_offset = -3.25
 
         offset = [
             LR_offset,
@@ -732,7 +732,22 @@ class MeshManipulationWindow(QtWidgets.QWidget):
 
         if self.helmet_type == None:
             return head_mesh, helmet_mesh
-        
+
+        # Create text object for embossing
+        text = pv.Text3D(name, depth=0.9)
+        text.scale([2.5, 2.5, 2.5], inplace=True)
+        text.rotate_z(90, inplace=True)
+
+        # Position text based on helmet type
+        if self.helmet_type == 'Flat':
+            text_offset = [31, 5, -14]
+        elif self.helmet_type == 'Winged':
+            text_offset = [27, 5, -11.8]
+        text.points += text_offset
+
+        # Add text to helmet to emboss
+        helmet_mesh = helmet_mesh + text
+
         # Zero the center of chin mesh
         if chin_mesh is not None:
             chin_mesh.points -= chin_mesh.center
