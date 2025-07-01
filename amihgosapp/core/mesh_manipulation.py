@@ -678,8 +678,8 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         # initial transform of head_mesh
         # Format [LR, PA, DV] or [X, Y, Z]
         LR_offset = 0.0
-        PA_offset = -3.5
-        DV_offset = -3.5
+        PA_offset = -2.75
+        DV_offset = -3.25
 
         offset = [
             LR_offset,
@@ -701,7 +701,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
 
         # Position text based on helmet type
         if self.helmet_type == 'Flat':
-            text_offset = [31, 5, -14.5]
+            text_offset = [31, 5, -14]
         elif self.helmet_type == 'Winged':
             text_offset = [27, 5, -11.8]
         text.points += text_offset
@@ -716,9 +716,9 @@ class MeshManipulationWindow(QtWidgets.QWidget):
             # Position chin piece mesh
             # Format [LR, PA, DV] or [X, Y, Z]
             if self.helmet_type == 'Flat':
-                chin_offset = [0, 6, -25.5]
+                chin_offset = [0, 7.4, -25.5]
             if self.helmet_type == 'Winged':
-                chin_offset = [0,6,-22.3]
+                chin_offset = [0,7.4,-22.3]
             chin_mesh.translate(chin_offset, inplace=True)
 
             # Add text label for chin piece
