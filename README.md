@@ -30,9 +30,10 @@ We ensure AMIHGOS has all the correct Python tools to run using [conda environme
    ```
    conda activate AMIHGOS
    ```
-6. Run the AMIHGOS_v3.py file
+6. Go to scripts directors and run the run_amihgos.py file
    ```
-   python AMIHGOS_v3.py
+   cd scripts
+   python run_amihgos.py
    ```
 # Application Tutorial
 Youtube video link to come in future commits. 

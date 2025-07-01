@@ -5,6 +5,7 @@ channels:
 dependencies:
   - python=3.12.1
   - pip=25.0
+  - matplotlib==3.8.2
   - pip:
     - simpleitk
     - vtk==9.3.0
