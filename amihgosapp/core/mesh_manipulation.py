@@ -617,7 +617,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
             # Show final result after subtraction
             self.plotter.clear()
             self.emboss_mesh()
-            self.plotter.add_mesh(self.final_mesh)
+            self.plotter.add_mesh(self.final_mesh, color = 'grey', opacity = .5)
             
             # load original head mesh and just do rotations and translation to 
             # see how this would fit on the original head topology            
@@ -740,9 +740,9 @@ class MeshManipulationWindow(QtWidgets.QWidget):
             # Position chin piece mesh
             # Format [LR, PA, DV] or [X, Y, Z]
             if self.helmet_type == 'Flat':
-                chin_offset = [0, 6, -25.5]
+                chin_offset = [0, 7.4, -25.5]
             if self.helmet_type == 'Winged':
-                chin_offset = [0,6,-22.3]
+                chin_offset = [0,7.4,-22.3]
             chin_mesh.translate(chin_offset, inplace=True)
 
        
