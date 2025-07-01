@@ -9,4 +9,7 @@ hooks/
 pycache/
 Example_file.nii
 AMIGHO_v1.py
-
+amihgosapp/resources/head_stls/
+amihgosapp/core/__pycache__
+**/__pycache__/
+*.pyc
