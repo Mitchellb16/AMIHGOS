@@ -57,23 +57,10 @@ def _perform_robust_boolean_difference(mesh_a: pv.PolyData, mesh_b: pv.PolyData,
     print(f"Pre-processing Mesh A (Subtract from): {mesh_a.n_points} points, {mesh_a.n_faces} faces")
     mesh_a.triangulate(inplace=True)
     mesh_a_cleaned = mesh_a.clean(inplace=False)
-# =============================================================================
-#     mesh_a_cleaned.fill_holes(DEFAULT_HOLE_SIZE, inplace=True)
-#     mesh_a_cleaned.compute_normals(inplace=True)
-#     mesh_a_cleaned.extract_largest(inplace=True)
-#     mesh_a_cleaned.clean(inplace=True)
-# =============================================================================
 
     print(f"Pre-processing Mesh B (Subtracting): {mesh_b.n_points} points, {mesh_b.n_faces} faces")
     mesh_b.triangulate(inplace=True)
     mesh_b_cleaned = mesh_b.clean(inplace=False)
-# =============================================================================
-#     mesh_b_cleaned.fill_holes(DEFAULT_HOLE_SIZE, inplace=True)
-#     mesh_b_cleaned.compute_normals(inplace=True)
-#     mesh_b_cleaned.extract_largest(inplace=True)
-#     mesh_b_cleaned.clean(inplace=True)
-# =============================================================================
-
 
     is_a_watertight = _is_mesh_watertight(mesh_a_cleaned)
     is_b_watertight = _is_mesh_watertight(mesh_b_cleaned)

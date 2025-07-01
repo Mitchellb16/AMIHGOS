@@ -534,9 +534,47 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         
         # add back to the clipped mesh
         self.final_mesh = clipped + smooth
+ 
         self.save_button.setDisabled(False)
 
         self.update_plotter(final_plot=True)
+    
+    def emboss_mesh(self):
+        # Create text object for embossing
+        text = pv.Text3D(self.animal_name, depth=0.9)
+        text.scale([2.5, 2.5, 2.5], inplace=True)
+        text.rotate_z(90, inplace=True)
+
+        # Position text based on helmet type
+        if self.helmet_type == 'Flat':
+            text_offset = [31, 5, -14.5]
+        elif self.helmet_type == 'Winged':
+            text_offset = [27, 5, -11.8]
+        text.points += text_offset
+
+        # Add text to helmet to emboss
+        self.final_mesh = self.final_mesh + text
+
+        # ZAdd text to chin mesh
+        if self.chin_subtract_bool:
+            
+            # Add text label for chin piece
+            chin_text = pv.Text3D(self.animal_name, depth=0.9)
+            chin_text.scale([2.5, 2.5, 2.5], inplace=True)
+
+            # Position text based on helmet type
+            if self.helmet_type == 'Flat':
+                chin_text_offset = [28, 5, -19.8]
+                chin_text.rotate_z(-90, inplace=True)
+                chin_text.rotate_x(180, inplace=True)
+
+            elif self.helmet_type == 'Winged':
+                chin_text_offset = [27, 5, -16]
+                chin_text.rotate_z(-90, inplace=True)
+                chin_text.rotate_x(180, inplace=True)
+
+            chin_text.translate(chin_text_offset, inplace=True)
+            self.chin_bool_mesh = self.chin_bool_mesh + chin_text
 
 
     def save_mesh(self):
@@ -578,6 +616,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         if final_plot:
             # Show final result after subtraction
             self.plotter.clear()
+            self.emboss_mesh()
             self.plotter.add_mesh(self.final_mesh)
             
             # load original head mesh and just do rotations and translation to 
@@ -678,8 +717,8 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         # initial transform of head_mesh
         # Format [LR, PA, DV] or [X, Y, Z]
         LR_offset = 0.0
-        PA_offset = -3.5
-        DV_offset = -3.5
+        PA_offset = -2.5
+        DV_offset = -3.75
 
         offset = [
             LR_offset,
@@ -693,22 +732,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
 
         if self.helmet_type == None:
             return head_mesh, helmet_mesh
-
-        # Create text object for embossing
-        text = pv.Text3D(name, depth=0.9)
-        text.scale([2.5, 2.5, 2.5], inplace=True)
-        text.rotate_z(90, inplace=True)
-
-        # Position text based on helmet type
-        if self.helmet_type == 'Flat':
-            text_offset = [31, 5, -14.5]
-        elif self.helmet_type == 'Winged':
-            text_offset = [27, 5, -11.8]
-        text.points += text_offset
-
-        # Add text to helmet to emboss
-        helmet_mesh = helmet_mesh + text
-
+        
         # Zero the center of chin mesh
         if chin_mesh is not None:
             chin_mesh.points -= chin_mesh.center
@@ -721,22 +745,5 @@ class MeshManipulationWindow(QtWidgets.QWidget):
                 chin_offset = [0,6,-22.3]
             chin_mesh.translate(chin_offset, inplace=True)
 
-            # Add text label for chin piece
-            chin_text = pv.Text3D(name, depth=0.9)
-            chin_text.scale([2.5, 2.5, 2.5], inplace=True)
-
-            # Position text based on helmet type
-            if self.helmet_type == 'Flat':
-                chin_text_offset = [28, 5, -19.8]
-                chin_text.rotate_z(-90, inplace=True)
-                chin_text.rotate_x(180, inplace=True)
-
-            elif self.helmet_type == 'Winged':
-                chin_text_offset = [27, 5, -16]
-                chin_text.rotate_z(-90, inplace=True)
-                chin_text.rotate_x(180, inplace=True)
-
-            chin_text.translate(chin_text_offset, inplace=True)
-            chin_mesh = chin_mesh + chin_text
-
+       
         return head_mesh, helmet_mesh, chin_mesh if chin_mesh is not None else None
