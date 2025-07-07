@@ -243,7 +243,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
 
         # Calculate scaling required to give Nmm of padding from L to R
         # this is actually an offset distance not a scaling
-        self.scaling_factor = 1.0
+        self.scaling_factor = 0.7
 
         self.plotter = None  # Initialize plotter to None
 
@@ -584,8 +584,8 @@ class MeshManipulationWindow(QtWidgets.QWidget):
             os.makedirs('helmets')
 
         # Generate filename with metadata
-        self.save_file = (f'helmets/{date.today()}_{self.animal_name}_'
-                          f'{str(self.scaling_factor)[2:]}_DV_'
+        self.save_file = (f'helmets/{date.today()}_{self.animal_name}_offset'
+                          f'{str(int(self.scaling_factor*10))}_DV'
                           f'{str(self.DV_translation.value)}.stl')
 
         # Save the helmet mesh
@@ -616,7 +616,8 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         if final_plot:
             # Show final result after subtraction
             self.plotter.clear()
-            self.emboss_mesh()
+            if 'auditory' not in self.helmet_mesh_file:
+                self.emboss_mesh()
             self.plotter.add_mesh(self.final_mesh, color = 'grey', opacity = .5)
             
             # load original head mesh and just do rotations and translation to 
@@ -757,7 +758,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
             if self.helmet_type == 'Flat':
                 chin_offset = [0, 7.4, -25.5]
             if self.helmet_type == 'Winged':
-                chin_offset = [0,7.4,-22.3]
+                chin_offset = [0,6,-22.3]
             chin_mesh.translate(chin_offset, inplace=True)
 
        
