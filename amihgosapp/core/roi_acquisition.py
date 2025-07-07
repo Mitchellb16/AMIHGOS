@@ -26,7 +26,7 @@ class ROIDataAcquisition:
     Each ROI is represented as a tuple: ((min_x,max_x),(min_y,max_y), and (min_z,max_z)).
     """
     
-    def __init__(self, image, window, root, frames_list, window_level=None, figure_size=(6, 4)):
+    def __init__(self, image, window, root, frames_list, window_level=None, figure_size=(3, 2)):
         """
         Initialize the ROI selection interface.
         
