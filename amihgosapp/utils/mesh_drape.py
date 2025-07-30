@@ -34,13 +34,16 @@ def create_manifold_extrusion(mesh: pv.PolyData, drape_axis: str = 'z', width_ax
     bounds = mesh.bounds
     min_overall_bound = bounds[drape_idx * 2]
     max_overall_bound = bounds[drape_idx * 2 + 1]
+    # We only want to look for the widest slice above the middle of the head
+    # so that we don't accidentally get the ears
+    min_slice_check = 0
 
     max_width = 0.0
     best_slice_pv = None
     current_best_pos = min_overall_bound
 
     # Find the slice with the maximum width
-    for pos in np.linspace(min_overall_bound, max_overall_bound, n_slices):
+    for pos in np.linspace(min_slice_check, max_overall_bound, n_slices):
         slice_ = mesh.slice(normal=normal, origin=(0, 0, pos))
         if slice_.n_points > 2:
             width = slice_.bounds[width_idx * 2 + 1] - slice_.bounds[width_idx * 2]
@@ -262,7 +265,7 @@ if __name__ == '__main__':
     output_dir = "draping_output"
 
     # For a general runnable example, using a PyVista built-in shape:
-    custom_shape = pv.read('/home/mitchell/Documents/Projects/CT_helmets/AMIHGOS_V3/amihgosapp/resources/head_stls/JESTER_smoothed_mmoffset6.stl')
+    custom_shape = pv.read('/home/mitchell/Documents/Projects/CT_helmets/AMIHGOS_V3/amihgosapp/resources/head_stls/Tinsel_smoothed_mmoffset7.stl')
     #custom_shape = pv.Sphere(radius=5.0) 
     # custom_shape = pv.Cylinder(height=10, radius=3, resolution=50) # Another good test case
 
