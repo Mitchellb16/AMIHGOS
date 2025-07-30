@@ -463,32 +463,6 @@ class MeshManipulationWindow(QtWidgets.QWidget):
                 head_debug_plotter.show()
             # --- END Optional Debug Plot ---
 
-        # --- Chin Mesh Processing ---
-        # NEED TO UPDATE WITH NEW BOOLEAN FUNCTION
-        if self.chin_subtract_bool:
-            # Pre-process chin mesh
-            self.chin_mesh = self.chin_mesh.clean(tolerance=self.GLOBAL_CLEAN_TOLERANCE, inplace=False)
-            self.chin_mesh.fill_holes(hole_size=self.DEFAULT_FILL_HOLE_SIZE, inplace=True)
-            self.chin_mesh.compute_normals(inplace=True)
-            self.chin_mesh.extract_largest(inplace=True)
-            self.chin_mesh.clean(tolerance=self.GLOBAL_CLEAN_TOLERANCE, inplace=True)
-            print(f"Chin mesh (cleaned) manifold: {self.chin_mesh.is_manifold}, watertight: {_is_mesh_watertight(self.chin_mesh)}")
-
-            # Perform chin subtraction
-            self.chin_bool_mesh = _perform_robust_boolean_difference(
-                mesh_a=self.chin_mesh,
-                mesh_b=self.head_mesh,
-                operation_name="chin subtraction",
-                debug_plot=self.DEBUG_BOOLEAN_PLOTS # Use class-level debug flag
-            )
-            if self.chin_bool_mesh is None or self.chin_bool_mesh.n_points == 0:
-                print("Chin subtraction failed or resulted in an empty mesh. Skipping chin post-processing.")
-            else:
-                self.chin_bool_mesh.clean(tolerance=self.GLOBAL_CLEAN_TOLERANCE, inplace=True)
-                self.chin_bool_mesh.fill_holes(self.DEFAULT_FILL_HOLE_SIZE, inplace=True)
-                self.chin_bool_mesh.compute_normals(inplace=True)
-                print(f"Chin boolean result manifold: {self.chin_bool_mesh.is_manifold}, watertight: {_is_mesh_watertight(self.chin_bool_mesh)}")
-
         
         # Drape head mesh
         head_mesh_filename = f'amihgosapp/resources/head_stls/{self.animal_name}_mmoffset{int(self.scaling_factor * 10)}.stl'
@@ -505,6 +479,27 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         
         print(f'Smoothed headmesh saved at {head_mesh_filename}')
         print(f"Head mesh (final pre-boolean) manifold: {self.head_mesh.is_manifold}, watertight: {_is_mesh_watertight(self.head_mesh)}")
+        
+        # --- Chin Mesh Processing ---
+        # NEED TO UPDATE WITH NEW BOOLEAN FUNCTION
+        if self.chin_subtract_bool:
+            
+            # Perform chin subtraction
+            self.chin_bool_mesh_file = _perform_robust_boolean_difference(
+                mesh_a_file=self.chin_mesh_file,
+                mesh_b_file=head_mesh_filename,
+                animal_name = self.animal_name,
+                output_directory = 'helmets/',
+                operation_name="chin subtraction",
+                debug_plot=self.DEBUG_BOOLEAN_PLOTS # Use class-level debug flag
+            )
+            if self.chin_bool_mesh_file is None:
+                print("Chin subtraction failed or resulted in an empty mesh. Skipping chin post-processing.")
+            else:
+                self.chin_bool_mesh = pv.read(self.chin_bool_mesh_file)
+                print(f"Chin boolean result manifold: {self.chin_bool_mesh.is_manifold}, watertight: {_is_mesh_watertight(self.chin_bool_mesh)}")
+
+        
         
         # Perform extruded helmet-head subtraction
         bool_mesh_file = _perform_robust_boolean_difference(
@@ -767,6 +762,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
             if self.helmet_type == 'Winged':
                 chin_offset = [0,6,-22.3]
             chin_mesh.translate(chin_offset, inplace=True)
+            chin_mesh.save(self.chin_mesh_file)
 
        
         return head_mesh, helmet_mesh, chin_mesh if chin_mesh is not None else None
