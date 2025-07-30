@@ -8,6 +8,7 @@ dependencies:
   - matplotlib==3.8.2
   - pip:
     - simpleitk
+    - trimesh
     - vtk==9.3.0
     - pyvistaqt
     - pyqt5>=5.15
