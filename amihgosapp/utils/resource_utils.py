@@ -25,9 +25,12 @@ def get_template_path(template_name):
     else:
         return os.path.join(_PROJECT_ROOT, resources_path, 'templates')
 
-def get_ct_path(ct_name):
+def get_ct_path(ct_name=None):
     """Get absolute path to a CT resource"""
-    return os.path.join(_PROJECT_ROOT, resources_path, 'ct_files', ct_name)
+    if ct_name is not None:
+        return os.path.join(_PROJECT_ROOT, resources_path, 'ct_files', ct_name)
+    else:
+        return os.path.join(_PROJECT_ROOT, resources_path, 'ct_files')
 
 def get_output_path(filename):
     """Get absolute path for an output file"""

@@ -155,10 +155,10 @@ class HomeWindow:
     def browse_nifti_files(self):
         """Open file dialog for selecting NIFTI/DICOM files"""
         filename = filedialog.askopenfilename(
-            initialdir='./nifti_files/Example',
+            initialdir='./nifti_files',
             filetypes=[
-                ("DICOM", ".dcm"),
                 ("NIFTI", ".nii"),
+                ("DICOM", ".dcm"),
                 ("NIFTI compressed", ".nii.gz"),
             ]
         )

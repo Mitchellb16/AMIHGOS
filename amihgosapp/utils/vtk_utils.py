@@ -66,8 +66,10 @@ def _perform_robust_boolean_difference(mesh_a_file: str, mesh_b_file: str, anima
     try:
         print(f"Loading meshes into Trimesh for {operation_name}...")
         trimesh_a = trimesh.load_mesh(mesh_a_file)
+        print(f'loaded mesh_a {mesh_a_file}')
         trimesh_b = trimesh.load_mesh(mesh_b_file)
-
+        print(f'loaded mesh_b {mesh_b_file}')
+        
         # Ensure consistent face winding and manifold properties for robust boolean operations
         trimesh_a.fix_normals()
         trimesh_b.fix_normals()
