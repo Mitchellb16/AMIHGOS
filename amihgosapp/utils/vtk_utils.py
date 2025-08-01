@@ -39,7 +39,7 @@ def _is_mesh_watertight(mesh: pv.PolyData) -> bool:
 
 # Helper function for robust boolean difference
 def _perform_robust_boolean_difference(mesh_a_file: str, mesh_b_file: str, animal_name: str, 
-                                       output_directory: str, operation_name: str = "subtraction", 
+                                       output_directory: str, operation_name: str = "subtraction", preview = False,
                                        debug_plot: bool = True) -> str | None:
     """
     Performs a robust boolean difference (mesh_a - mesh_b) using Trimesh,
@@ -79,13 +79,14 @@ def _perform_robust_boolean_difference(mesh_a_file: str, mesh_b_file: str, anima
         print(f'Mesh B watertight? {trimesh_b.is_watertight}')
         
         # preview scene before subtraction
-        scene = trimesh.Scene()
-        scene.add_geometry(trimesh_a)
-        scene.add_geometry(trimesh_b)
-        trimesh_a.visual.face_colors = [200, 50, 50, 200]
-        trimesh_b.visual.face_colors = [50, 50, 200, 200]
-        print('Displaying preview of subtraction...')
-        scene.show()
+        if preview:
+            scene = trimesh.Scene()
+            scene.add_geometry(trimesh_a)
+            scene.add_geometry(trimesh_b)
+            trimesh_a.visual.face_colors = [200, 50, 50, 200]
+            trimesh_b.visual.face_colors = [50, 50, 200, 200]
+            print('Displaying preview of subtraction...')
+            scene.show()
 
         print(f"Performing Trimesh boolean.difference for {operation_name}...")
         trimesh_result = trimesh.boolean.difference([trimesh_a, trimesh_b], 'manifold')
