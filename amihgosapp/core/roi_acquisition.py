@@ -314,26 +314,26 @@ class ROIDataAcquisition:
 
     def add_roi(self):
         """Add the currently selected ROI to the list."""
-        if self.roi_selector.visible:
-            self.roi_selector.set_visible(False)
-            # Extent is in sub-pixel coordinates, we need it in pixels/voxels
-            roi_extent = [int(round(coord)) for coord in self.roi_selector.extents]
-            # We keep the patch for display and the x,y,z ranges of the ROI
-            self.rois.append(
-                (
-                    patches.Rectangle(
-                        (roi_extent[0], roi_extent[2]),
-                        roi_extent[1] - roi_extent[0],
-                        roi_extent[3] - roi_extent[2],
-                        **self.roi_display_properties,
-                    ),
-                    (roi_extent[0], roi_extent[1]),
-                    (roi_extent[2], roi_extent[3]),
-                    [i.get() for i in self.sliders],
-                )
+
+        self.roi_selector.set_visible(False)
+        # Extent is in sub-pixel coordinates, we need it in pixels/voxels
+        roi_extent = [int(round(coord)) for coord in self.roi_selector.extents]
+        # We keep the patch for display and the x,y,z ranges of the ROI
+        self.rois.append(
+            (
+                patches.Rectangle(
+                    (roi_extent[0], roi_extent[2]),
+                    roi_extent[1] - roi_extent[0],
+                    roi_extent[3] - roi_extent[2],
+                    **self.roi_display_properties,
+                ),
+                (roi_extent[0], roi_extent[1]),
+                (roi_extent[2], roi_extent[3]),
+                [i.get() for i in self.sliders],
             )
-            self.middle_ax.add_patch(self.rois[-1][0])
-            self.update_display()
+        )
+        self.middle_ax.add_patch(self.rois[-1][0])
+        self.update_display()
 
     def _clear_all_data(self):
         """Remove all ROIs from the display."""

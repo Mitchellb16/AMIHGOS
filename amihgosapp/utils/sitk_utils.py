@@ -15,7 +15,7 @@ import vtk
 from vtk.util import numpy_support
 
 
-def sitk2vtk(img, debug_on=True):
+def sitk2vtk(img, debug_on=False):
     """
     Convert a SimpleITK image to a VTK image using numpy as an intermediate format.
     

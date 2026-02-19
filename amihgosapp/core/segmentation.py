@@ -14,21 +14,22 @@ from amihgosapp.utils.resource_utils import get_image_path, get_template_path, g
 # Import from old locations for modules not yet migrated
 from amihgosapp.utils import sitk_utils
 from amihgosapp.utils import vtk_utils
+from amihgosapp.utils.mesh_integrity import analyze_single_mesh
 from amihgosapp.core.mesh_manipulation import MeshManipulationWindow
 
 
 class SegmentationScreen:
     """
     GUI for segmenting an image and extracting an STL mesh.
-    
+
     This class provides functionality to process a SimpleITK image,
     create a mesh, and prepare it for manipulation with a helmet.
     """
-    
+
     def __init__(self, img, animal_name):
         """
         Initialize the segmentation screen.
-        
+
         Parameters
         ----------
         img : SimpleITK.Image
@@ -40,7 +41,7 @@ class SegmentationScreen:
         self.animal_name = animal_name
         self.output_dir = get_output_path(f'{self.animal_name}.stl')
         self._setup_ui()
-        
+
     def _setup_ui(self):
         """Set up the UI components."""
         # Create main window
@@ -53,44 +54,45 @@ class SegmentationScreen:
         self.logo = tk.PhotoImage(file=logo_path)
         self.logo = self.logo.subsample(10, 10)
         self.logo_label = tk.Label(master=self.root, image=self.logo)
-        self.logo_label.image = self.logo  # Keep a reference to prevent garbage collection
+        # Keep a reference to prevent garbage collection
+        self.logo_label.image = self.logo
         self.logo_label.pack(pady=5)
 
         # Add status text
-        self.text_label = tk.Label(self.root, text="Segmenting and extracting .STL mesh...")
+        self.text_label = tk.Label(
+            self.root, text="Segmenting and extracting .STL mesh...")
         self.text_label.pack(pady=5)
-        
-        
+
         # Schedule segmentation to start after the window opens
         self.root.after(1000, self.segment_to_stl)
 
     def start(self):
         """Start the main UI loop."""
         tk.mainloop()
-        
+
     def close(self):
         """Close the UI window."""
         self.root.destroy()
-        
+
     def segment_to_stl(self):
         """
         Process the image and convert it to an STL mesh.
-        
+
         This method:
         1. Applies image filters (anisotropic smoothing, thresholding, median filter)
         2. Converts to a VTK mesh
         3. Cleans, smooths, and saves the mesh
         4. Updates the UI with helmet selection options
-        """        
+        """
         # Processing parameters
         anisotropic_smoothing = True
         thresholds = [-300., -200., 400., 2000.]  # Thresholds for skin in HU
         median_filter = True
         connectivity_filter = True
-    
+
         # Downsample image for performance
         img = self.img[::2, ::2, ::2]
-    
+
         # Apply anisotropic smoothing to preserve edges
         if anisotropic_smoothing:
             print("Applying Anisotropic Smoothing")
@@ -98,14 +100,14 @@ class SegmentationScreen:
             img = sitk.Cast(img, sitk.sitkFloat32)
             img = sitk.CurvatureAnisotropicDiffusion(img, .012)
             img = sitk.Cast(img, pixel_type)
-    
+
         # Apply double threshold filter
         if len(thresholds) == 4:
             print(f"Applying Double Threshold: {thresholds}")
             img = sitk.DoubleThreshold(
                 img, thresholds[0], thresholds[1], thresholds[2], thresholds[3],
                 255, 0)
-            isovalue = 64.0
+            isovalue = 200.0
 
         # Apply median filter
         if median_filter:
@@ -113,57 +115,69 @@ class SegmentationScreen:
             median_filter_val = 3
             # Filter twice to fill in ear holes
             #median_smooth = sitk.Median(img, [median_filter_val, median_filter_val, median_filter_val])
-            img = sitk.BinaryMedian(img, [median_filter_val]*3, foregroundValue = 255)
-                    
+            img = sitk.BinaryMedian(
+                img, [median_filter_val]*3, foregroundValue=255)
+
+# =============================================================================
+#         # Opening: Remove small islands and thin connections
+#         # Use a smaller kernel for opening so you don't erase important features.
+#         opening_radius = [10] * 3
+#         img = sitk.BinaryMorphologicalOpening(img, opening_radius, foregroundValue=255)
+# =============================================================================
+
         # Fill holes in the image
         img = sitk.BinaryMorphologicalClosing(img, [10]*3, foregroundValue=255)
-        
-        
+
         # Pad the image
         stats = sitk.StatisticsImageFilter()
         stats.Execute(img)
         min_val = stats.GetMinimum()
         pad = [5, 5, 5]
         img = sitk.ConstantPad(img, pad, pad, min_val)
-        
+
         # Convert to VTK image and extract surface
         vtkimg = sitk_utils.sitk2vtk(img)
         mesh = vtk_utils.extractSurface(vtkimg, isovalue)
         vtkimg = None
-        
-                       
+
         # Clean the mesh
         mesh2 = vtk_utils.cleanMesh(mesh, connectivity_filter)
         mesh = None
-        
+
         # Remove small objects
-        mesh_cleaned_parts = vtk_utils.removeSmallObjects(mesh2, .99)
+        mesh_cleaned_parts = vtk_utils.removeSmallObjects(mesh2, .9)
         mesh2 = None
-        
+
         # Smooth the mesh
-        mesh3 = vtk_utils.smoothMesh(mesh_cleaned_parts, n_iterations=500)
+        mesh3 = vtk_utils.smoothMesh(mesh_cleaned_parts, n_iterations=20)
         mesh_cleaned_parts = None
-        
+
         # Save the mesh
         vtk_utils.writeMesh(mesh3, self.output_dir)
-        
+
+        # Check integrity of the written mesh
+        mesh_props = analyze_single_mesh(self.output_dir)
+
+        print(
+            f"Mesh saved. Manifold? {mesh_props['manifold']} | Watertight? {mesh_props['watertight']}")
+
         # Update UI with completion status and helmet options
         self._show_helmet_selection()
-    
+
     def _show_helmet_selection(self):
         """Show helmet selection UI after segmentation is complete."""
         # Add completion label
         self.done_label = tk.Label(
-            self.root, 
+            self.root,
             text="DONE! Select helmet then click below to continue to helmet subtraction."
         )
         self.done_label.pack(pady=5)
-        
+
         # Get available helmet templates from templates directory
         import os
         template_dir = get_template_path(None)
         helmet_options = os.listdir(template_dir)
-        
+
         # Dropdown default is flat helmet if available, otherwise first option
         self.helmet_selection = tk.StringVar()
         default_helmet = 'FlatHelmet.stl'
@@ -175,27 +189,28 @@ class SegmentationScreen:
             # Add a default option if no templates found
             helmet_options = ['No templates found']
             self.helmet_selection.set(helmet_options[0])
-        
+
         # Create dropdown menu
-        self.dropdown = tk.OptionMenu(self.root, self.helmet_selection, *helmet_options)
+        self.dropdown = tk.OptionMenu(
+            self.root, self.helmet_selection, *helmet_options)
         self.dropdown.pack(pady=5)
-        
+
         # Add continue button
         self.continue_button = tk.Button(
-            self.root, 
-            text='Continue', 
+            self.root,
+            text='Continue',
             command=self.run_mesh_manipulation_window
         )
         self.continue_button.pack(pady=5)
-        
+
         # Update and resize
         self.root.update_idletasks()  # Ensure widgets are drawn first
         self.root.geometry("")  # Set window size to fit content
-    
+
     def run_mesh_manipulation_window(self):
         """
         Launch the mesh manipulation window with the selected helmet.
-        
+
         This method:
         1. Closes the current window
         2. Gets the selected helmet and mesh paths
@@ -204,33 +219,66 @@ class SegmentationScreen:
         """
         # Close current window
         self.root.destroy()
-        
+
         # Get file paths
         selected_helmet = self.helmet_selection.get()
         helmet_mesh_file = get_template_path(selected_helmet)
         head_mesh_file = self.output_dir
-        
+
         # Set up Qt application
         if not QtWidgets.QApplication.instance():
             app = QtWidgets.QApplication(sys.argv)
         else:
             app = QtWidgets.QApplication.instance()
-            
+
         app.setQuitOnLastWindowClosed(True)
-        
+
         # Launch mesh manipulation window with parameters determined by helmet type
         if 'winged' in helmet_mesh_file.lower():
             window = MeshManipulationWindow(
-                helmet_mesh_file, 
-                head_mesh_file, 
+                helmet_mesh_file,
+                head_mesh_file,
                 self.animal_name,
             )
         else:
             window = MeshManipulationWindow(
-                helmet_mesh_file, 
-                head_mesh_file, 
+                helmet_mesh_file,
+                head_mesh_file,
                 self.animal_name
             )
-            
+
         window.run()
         sys.exit(app.exec_())
+
+
+if __name__ == '__main__':
+    import os
+
+    # --- Configuration ---
+    # SET THE PATH TO YOUR NIFTI FILE HERE
+    NIFTI_FILE_PATH = "/home/mitchell/Documents/Projects/CT_helmets/AMIHGOS_V3/amihgosapp/resources/ct_files/registered/FORCE_registered.nii"
+    img = sitk.ReadImage(NIFTI_FILE_PATH)
+    animal_name = 'TEST'
+    # --- Main Execution Logic ---
+
+    # 1. Validate the input file path
+    if not os.path.exists(NIFTI_FILE_PATH):
+        print(
+            f"❌ Error: File not found at the specified path: {NIFTI_FILE_PATH}", file=sys.stderr)
+        print(
+            "Please update the 'NIFTI_FILE_PATH' variable in the script.", file=sys.stderr)
+        sys.exit(1)
+
+    # 2. Load the image
+    print(f"Loading image from: {NIFTI_FILE_PATH}")
+    input_image = sitk.ReadImage(NIFTI_FILE_PATH)
+
+    # 3. Set up the processor
+    output_directory = "/home/mitchell/Documents/Projects/CT_helmets/AMIHGOS_V3/amihgosapp/resources/head_stls"
+    if not os.path.exists(output_directory):
+        os.makedirs(output_directory)
+
+    # 4. Instantiate your class and run the method
+    seg_test = SegmentationScreen(img, animal_name)
+    seg_test.start()
+    print("\n✅ Script finished.")

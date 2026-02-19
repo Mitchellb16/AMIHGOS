@@ -12,11 +12,12 @@ Reorganized and optimized as part of the AMIHGOS project migration by Mitchell B
 """
 
 import sys
+import os
 import time
 import traceback
 import vtk
 import pyvista as pv
-import numpy as np
+import trimesh
 
 
 def round_thousand(x):
@@ -37,75 +38,82 @@ def _is_mesh_watertight(mesh: pv.PolyData) -> bool:
     return boundary_edges.n_points == 0
 
 # Helper function for robust boolean difference
-def _perform_robust_boolean_difference(mesh_a: pv.PolyData, mesh_b: pv.PolyData, operation_name: str = "subtraction", debug_plot: bool = True) -> pv.PolyData | None:
+def _perform_robust_boolean_difference(mesh_a_file: str, mesh_b_file: str, animal_name: str, 
+                                       output_directory: str, operation_name: str = "subtraction", preview = False,
+                                       debug_plot: bool = True) -> str | None:
     """
-    Performs a robust boolean difference (mesh_a - mesh_b) with pre-processing.
+    Performs a robust boolean difference (mesh_a - mesh_b) using Trimesh,
+    with file-based handling for mesh type conversion.
 
     Args:
-        mesh_a (pv.PolyData): The mesh to subtract from.
-        mesh_b (pv.PolyData): The mesh to subtract.
+        mesh_a_file (str): The path to the mesh to subtract from.
+        mesh_b_file (str): The path to the mesh to subtract.
+        output_directory (str): Directory to save temporary and final mesh files.
         operation_name (str): A descriptive name for the current operation (e.g., "chin subtraction").
-        debug_plot (bool): If True, plots intermediate meshes and their feature edges for debugging.
+        debug_plot (bool): If True, plots intermediate meshes and their feature edges for debugging
+                           (applies to PyVista inputs before Trimesh conversion).
 
     Returns:
-        pv.PolyData | None: The resulting mesh after subtraction, or None if the operation failed.
+        str | None: The file path to the resulting mesh after subtraction, or None if the operation failed.
     """
     print(f"\n--- Starting Robust Boolean Operation: {operation_name} ---")
 
-    DEFAULT_HOLE_SIZE = 10.0 # Adjust as needed
+    # Ensure output directory exists
+    os.makedirs(output_directory, exist_ok=True)
 
-    print(f"Pre-processing Mesh A (Subtract from): {mesh_a.n_points} points, {mesh_a.n_faces} faces")
-    mesh_a.triangulate(inplace=True)
-    mesh_a_cleaned = mesh_a.clean(inplace=False)
-
-    print(f"Pre-processing Mesh B (Subtracting): {mesh_b.n_points} points, {mesh_b.n_faces} faces")
-    mesh_b.triangulate(inplace=True)
-    mesh_b_cleaned = mesh_b.clean(inplace=False)
-
-    is_a_watertight = _is_mesh_watertight(mesh_a_cleaned)
-    is_b_watertight = _is_mesh_watertight(mesh_b_cleaned)
-
-    print(f"Mesh A (cleaned) manifold: {mesh_a_cleaned.is_manifold}, watertight: {is_a_watertight}")
-    print(f"Mesh B (cleaned) manifold: {mesh_b_cleaned.is_manifold}, watertight: {is_b_watertight}")
-
-    if not is_a_watertight or not is_b_watertight:
-        print(f"Warning: One or both meshes for {operation_name} are not watertight. This increases risk of failure.")
-        if debug_plot:
-            plotter = pv.Plotter(shape=(1,2))
-            plotter.subplot(0,0)
-            plotter.add_text("Mesh A Boundary Edges", font_size=10)
-            plotter.add_mesh(mesh_a_cleaned, color='red', opacity=0.5, show_edges=True)
-            plotter.add_mesh(mesh_a_cleaned.extract_feature_edges(boundary_edges=True), color='black', line_width=5)
-            plotter.subplot(0,1)
-            plotter.add_text("Mesh B Boundary Edges", font_size=10)
-            plotter.add_mesh(mesh_b_cleaned, color='blue', opacity=0.5, show_edges=True)
-            plotter.add_mesh(mesh_b_cleaned.extract_feature_edges(boundary_edges=True), color='black', line_width=5)
-            plotter.link_views()
-            plotter.show()
-
-
+    
+    #Load meshes into Trimesh and perform boolean subtraction ---
     try:
-        print(f"Attempting {operation_name}...")
-        result_mesh = mesh_a.boolean_difference(mesh_b)
+        print(f"Loading meshes into Trimesh for {operation_name}...")
+        trimesh_a = trimesh.load_mesh(mesh_a_file)
+        print(f'loaded mesh_a {mesh_a_file}')
+        trimesh_b = trimesh.load_mesh(mesh_b_file)
+        print(f'loaded mesh_b {mesh_b_file}')
+        
+        # Ensure consistent face winding and manifold properties for robust boolean operations
+        trimesh_a.fix_normals()
+        trimesh_b.fix_normals()
+        
+        # check watertightness of volumes
+        print(f'Mesh A watertight? {trimesh_a.is_watertight}')
+        print(f'Mesh B watertight? {trimesh_b.is_watertight}')
+        
+        # preview scene before subtraction
+        if preview:
+            scene = trimesh.Scene()
+            scene.add_geometry(trimesh_a)
+            scene.add_geometry(trimesh_b)
+            trimesh_a.visual.face_colors = [200, 50, 50, 200]
+            trimesh_b.visual.face_colors = [50, 50, 200, 200]
+            print('Displaying preview of subtraction...')
+            scene.show()
 
-        if result_mesh.n_points == 0:
-            print(f"{operation_name} resulted in an empty mesh. This often indicates issues with inputs or intersections.")
-            return None
+        print(f"Performing Trimesh boolean.difference for {operation_name}...")
+        trimesh_result = trimesh.boolean.difference([trimesh_a, trimesh_b], 'manifold')
 
-        result_mesh.clean(inplace=True)
-        result_mesh.fill_holes(DEFAULT_HOLE_SIZE, inplace=True)
-        result_mesh.compute_normals(inplace=True)
-        result_mesh.extract_largest(inplace=True)
-        result_mesh.clean(inplace=True)
+        if trimesh_result is None:
+            # Trimesh's boolean operations can return None if inputs are problematic
+            raise ValueError("Trimesh boolean.difference returned None. Check input validity and intersection.")
+        
+        # Optional: Trimesh results are usually good, but an additional fix_normals can't hurt
+        trimesh_result.fix_normals()
 
-        print(f"{operation_name} successful. Result has {result_mesh.n_points} points, {result_mesh.n_faces} faces.")
-        return result_mesh
+        print(f"Trimesh {operation_name} successful. Result has {len(trimesh_result.vertices)} vertices, {len(trimesh_result.faces)} faces.")
+
+        # --- 4. Save Trimesh result to output file (PyVista readable) ---
+        # Exporting as PLY for general compatibility
+        output_result_path = os.path.join(output_directory, f"{animal_name}_helmet.ply")
+        trimesh_result.export(output_result_path)
+        print(f"Trimesh result saved to {output_result_path}")
+
+        return output_result_path
 
     except Exception as e:
-        print(f"An error occurred during {operation_name}: {e}")
-        print("Common causes: non-manifold meshes, self-intersections (especially from offsetting), or numerical issues.")
-        print("Consider reducing offset_distance, or further tuning the healing in offset_mesh.")
+        print(f"An error occurred during Trimesh boolean {operation_name}: {e}")
+        print("Common causes: non-manifold or non-watertight inputs, self-intersections, or numerical issues.")
+        print("Ensure input meshes are watertight and well-conditioned before passing to the function.")
         return None
+
 
 def offset_mesh(input_mesh: pv.PolyData, offset_distance: float, healing_resolution: float | None = None) -> pv.PolyData:
     """

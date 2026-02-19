@@ -14,6 +14,7 @@ from PyQt5.QtCore import Qt
 
 # Import from new locations when available
 from amihgosapp.utils.resource_utils import get_template_path
+from amihgosapp.utils.mesh_drape import perform_draping_workflow
 from amihgosapp.utils.vtk_utils import offset_mesh, _perform_robust_boolean_difference, _is_mesh_watertight
 
 
@@ -180,7 +181,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         self.DEFAULT_FILL_HOLE_SIZE = 1000.0
 
         # Parameters specific to head mesh decimation and post-decimation healing
-        self.HEAD_MESH_DECIMATION_THRESHOLD_FACES = 10000 # Only decimate if more than this many faces
+        self.HEAD_MESH_DECIMATION_THRESHOLD_FACES = 8000 # Only decimate if more than this many faces
         self.HEAD_MESH_DECIMATION_TARGET_REDUCTION = 0.5 # Target for head mesh decimation (e.g., 0.5 = 50% reduction)
         self.HEAD_MESH_POST_DECIMATION_FILL_HOLE_SIZE = 500.0 # Increased significantly for decimation-induced holes
 
@@ -462,79 +463,73 @@ class MeshManipulationWindow(QtWidgets.QWidget):
                 head_debug_plotter.show()
             # --- END Optional Debug Plot ---
 
-        print(f"Head mesh (final pre-boolean) manifold: {self.head_mesh.is_manifold}, watertight: {_is_mesh_watertight(self.head_mesh)}")
-
-
-        head_mesh_filename = f'amihgosapp/resources/head_stls/{self.animal_name}_smoothed_mmoffset{int(self.scaling_factor * 10)}.stl'
-        os.makedirs(os.path.dirname(head_mesh_filename), exist_ok=True)
+        
+        # Drape head mesh
+        head_mesh_filename = f'amihgosapp/resources/head_stls/{self.animal_name}_mmoffset{int(self.scaling_factor * 10)}.stl'
         self.head_mesh.save(head_mesh_filename)
+        os.makedirs(os.path.dirname(head_mesh_filename), exist_ok=True)
+        draped_dir = 'amihgosapp/resources/head_stls/'
+        
+        # right now the draped mesh is not watertight, and thus we can't perform the
+        # subtraction directly on the draped_head_mesh
+        self.draped_mesh_file, self.draped_head_mesh, self.extruded_mesh_file = perform_draping_workflow(self.head_mesh, 
+                                                                                                         self.animal_name,
+                                                            draped_dir
+                                                            )
+        
         print(f'Smoothed headmesh saved at {head_mesh_filename}')
-
+        print(f"Head mesh (final pre-boolean) manifold: {self.head_mesh.is_manifold}, watertight: {_is_mesh_watertight(self.head_mesh)}")
+        
         # --- Chin Mesh Processing ---
+        # NEED TO UPDATE WITH NEW BOOLEAN FUNCTION
         if self.chin_subtract_bool:
-            # Pre-process chin mesh
-            self.chin_mesh = self.chin_mesh.clean(tolerance=self.GLOBAL_CLEAN_TOLERANCE, inplace=False)
-            self.chin_mesh.fill_holes(hole_size=self.DEFAULT_FILL_HOLE_SIZE, inplace=True)
-            self.chin_mesh.compute_normals(inplace=True)
-            self.chin_mesh.extract_largest(inplace=True)
-            self.chin_mesh.clean(tolerance=self.GLOBAL_CLEAN_TOLERANCE, inplace=True)
-            print(f"Chin mesh (cleaned) manifold: {self.chin_mesh.is_manifold}, watertight: {_is_mesh_watertight(self.chin_mesh)}")
-
+            
             # Perform chin subtraction
-            self.chin_bool_mesh = _perform_robust_boolean_difference(
-                mesh_a=self.chin_mesh,
-                mesh_b=self.head_mesh,
+            self.chin_bool_mesh_file = _perform_robust_boolean_difference(
+                mesh_a_file=self.chin_mesh_file,
+                mesh_b_file=head_mesh_filename,
+                animal_name = self.animal_name,
+                output_directory = 'helmets/',
                 operation_name="chin subtraction",
                 debug_plot=self.DEBUG_BOOLEAN_PLOTS # Use class-level debug flag
             )
-            if self.chin_bool_mesh is None or self.chin_bool_mesh.n_points == 0:
+            if self.chin_bool_mesh_file is None:
                 print("Chin subtraction failed or resulted in an empty mesh. Skipping chin post-processing.")
             else:
-                self.chin_bool_mesh.clean(tolerance=self.GLOBAL_CLEAN_TOLERANCE, inplace=True)
-                self.chin_bool_mesh.fill_holes(self.DEFAULT_FILL_HOLE_SIZE, inplace=True)
-                self.chin_bool_mesh.compute_normals(inplace=True)
+                self.chin_bool_mesh = pv.read(self.chin_bool_mesh_file)
                 print(f"Chin boolean result manifold: {self.chin_bool_mesh.is_manifold}, watertight: {_is_mesh_watertight(self.chin_bool_mesh)}")
 
-
-        # --- Helmet Mesh Processing ---
-        # Pre-process helmet_mesh
-        self.helmet_mesh = self.helmet_mesh.clean(tolerance=self.GLOBAL_CLEAN_TOLERANCE, inplace=False)
-        self.helmet_mesh.fill_holes(hole_size=self.DEFAULT_FILL_HOLE_SIZE, inplace=True) # Changed from 100.0 to DEFAULT_FILL_HOLE_SIZE
-        self.helmet_mesh.compute_normals(inplace=True)
-        self.helmet_mesh.extract_largest(inplace=True)
-        self.helmet_mesh.clean(tolerance=self.GLOBAL_CLEAN_TOLERANCE, inplace=True)
-        print(f"Helmet mesh (cleaned) manifold: {self.helmet_mesh.is_manifold}, watertight: {_is_mesh_watertight(self.helmet_mesh)}")
-
-        # Perform main helmet-head subtraction
-        bool_mesh = _perform_robust_boolean_difference(
-            mesh_a=self.helmet_mesh,
-            mesh_b=self.head_mesh,
-            operation_name="main helmet-head subtraction",
+        
+        
+        # Perform extruded helmet-head subtraction
+        bool_mesh_file = _perform_robust_boolean_difference(
+            mesh_a_file=self.helmet_mesh_file,
+            mesh_b_file=self.extruded_mesh_file,
+            animal_name=self.animal_name,
+            operation_name="extruded helmet-head subtraction",
+            output_directory = 'helmets/extruded_',
             debug_plot=self.DEBUG_BOOLEAN_PLOTS # Use class-level debug flag
         )
-
-        if bool_mesh is None or bool_mesh.n_points == 0:
+        # Perform final subtraction with head_mesh and extruded helmet mesh
+        self.final_mesh_file = _perform_robust_boolean_difference(
+            mesh_a_file=bool_mesh_file,
+            mesh_b_file=head_mesh_filename,
+            animal_name=self.animal_name,
+            operation_name="main helmet-head subtraction",
+            output_directory = 'helmets/',
+            debug_plot=self.DEBUG_BOOLEAN_PLOTS # Use class-level debug flag
+        )
+        
+        if bool_mesh_file is None:
             print("Main helmet-head subtraction failed or resulted in an empty mesh. Cannot proceed with smoothing/combination.")
             self.final_mesh = pv.PolyData()
             self.save_button.setDisabled(True)
             self.save_button.setStyleSheet("background-color: lightgray")
             self.update_plotter(final_plot=True)
             return
-
-        # --- Clipping and Smoothing ---
-        # Use class-level bounds
-        clipped = bool_mesh.clip_box(self.FINAL_CLIPPING_BOUNDS, invert=True, crinkle=False).extract_surface()
-        clipping = bool_mesh.clip_box(self.FINAL_CLIPPING_BOUNDS, invert=False, crinkle=False).extract_surface()
-
-        # smoothing
-        surface = clipping.extract_geometry()
-        smooth = surface.smooth_taubin(n_iter=70, pass_band = .04,
-                                       non_manifold_smoothing=True, normalize_coordinates=True)
-        smooth.fill_holes(hole_size = 20, inplace=True)
         
-        # add back to the clipped mesh
-        self.final_mesh = clipped + smooth
- 
+        self.final_mesh = pv.read(self.final_mesh_file)        
+         
         self.save_button.setDisabled(False)
 
         self.update_plotter(final_plot=True)
@@ -605,7 +600,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         print(success_message)
 
     def update_plotter(self, final_plot=False):
-        """Update the plotter with current mesh transformations."""
+        """Update the mesh and plotter with current mesh transformations."""
         if not hasattr(self, 'plotter') or self.plotter is None:
             return
 
@@ -713,6 +708,11 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         # Align the centers of both meshes at 0 then translate
         helmet_mesh.points -= helmet_mesh.center
         head_mesh.points -= head_mesh.center
+        
+        # Save the helmet mesh after this translation so it is preserved in
+        # the subtraction step
+        helmet_mesh.save(self.helmet_mesh_file)
+        
         # print(f'After centering, head mesh is manifold: {head_mesh.is_manifold}') # Moved to update_plotter
 
         # initial transform of head_mesh
@@ -747,6 +747,8 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         text.points += text_offset
 
         # Add text to helmet to emboss
+        # this is just for preview, the actual text is added by the emboss
+        # function after subtraction
         helmet_mesh = helmet_mesh + text
 
         # Zero the center of chin mesh
@@ -760,6 +762,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
             if self.helmet_type == 'Winged':
                 chin_offset = [0,6,-22.3]
             chin_mesh.translate(chin_offset, inplace=True)
+            chin_mesh.save(self.chin_mesh_file)
 
        
         return head_mesh, helmet_mesh, chin_mesh if chin_mesh is not None else None

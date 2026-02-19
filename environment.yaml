@@ -5,11 +5,15 @@ channels:
 dependencies:
   - python=3.12.1
   - pip=25.0
-  - matplotlib==3.8.2
+  - matplotlib
   - pip:
     - simpleitk
+    - trimesh
     - vtk==9.3.0
     - pyvistaqt
     - pyqt5>=5.15
+    - pyglet<=2.0
+    - manifold3d
+    - scipy
 
 

@@ -6,6 +6,8 @@ RegistrationPointDataAcquisition module - GUI for landmark-based registration
 Adapted from SimpleITK jupyter notebook tutorials
 """
 import SimpleITK as sitk
+from pathlib import Path
+import os
 from tkinter import Frame, Button, Scale, Toplevel, Label, StringVar, Entry
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -587,7 +589,7 @@ class RegistrationPointDataAcquisition:
             
             # Visualize the registration result
             visualize_registration(self.fixed_image, self.moving_resampled, root=self.root)
-            
+                        
             # Show success popup with options for next steps
             self._show_success_popup()
             
@@ -628,6 +630,13 @@ class RegistrationPointDataAcquisition:
         """Launch the segmentation screen with the registered image."""
         # Get animal name for helmet label
         self.name_change()
+        
+        # Write the registered image to file
+        registered_folder = os.path.join(get_ct_path(), 'registered')
+        os.makedirs(registered_folder, exist_ok = True)
+        registered_filename = os.path.join(registered_folder, f'{self.animal_name}_registered.nii')
+        sitk.WriteImage(self.moving_resampled, registered_filename)
+        print(f'Wrote registered file to {registered_filename}.')
         
         # Close windows
         self.popup.destroy()
