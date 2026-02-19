@@ -14,5 +14,6 @@ dependencies:
     - pyqt5>=5.15
     - pyglet<=2.0
     - manifold3d
+    - scipy
 
 

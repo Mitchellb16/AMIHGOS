@@ -192,8 +192,8 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         self.SMOOTHING_FILL_HOLE_SIZE = 20.0 # For the smoothed surface section
 
         # Debugging flags - set to True/False as needed
-        self.DEBUG_HEAD_MESH_HEALING_PLOT = True # To visually inspect head mesh after decimation+healing
-        self.DEBUG_BOOLEAN_PLOTS = True # Flag for _perform_robust_boolean_difference debug plots
+        self.DEBUG_HEAD_MESH_HEALING_PLOT = False # To visually inspect head mesh after decimation+healing
+        self.DEBUG_BOOLEAN_PLOTS = False # Flag for _perform_robust_boolean_difference debug plots
         # --- End Configurable Parameters ---
 
         # Load helmet and head meshes
@@ -600,7 +600,7 @@ class MeshManipulationWindow(QtWidgets.QWidget):
         print(success_message)
 
     def update_plotter(self, final_plot=False):
-        """Update the plotter with current mesh transformations."""
+        """Update the mesh and plotter with current mesh transformations."""
         if not hasattr(self, 'plotter') or self.plotter is None:
             return
 
